@@ -1,3 +1,4 @@
+ HEAD
 # Collaborative Study Vault
 
 AI-powered collaborative learning platform with real-time study workspaces, markdown notes, group chat, and Gemini-driven quizzes, summaries, and flashcards.
@@ -142,3 +143,8 @@ Collaborative-Study-Vault/
 ## Author
 
 Dingari Vikram — MIT License
+=======
+# Collaborative-Study-Vault
+●A real-time repository for class notes, past papers, and resources.
+●Key Features: Topic-wise file uploading, upvote/downvote system for quality control, real-time shared "whiteboard" for group study, and a doubt clearance forum.
+

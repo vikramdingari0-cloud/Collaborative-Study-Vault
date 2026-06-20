@@ -74,11 +74,16 @@ const init = (server) => {
       origin: (origin, callback) => {
         // Require origin in production
         if (process.env.NODE_ENV === "production") {
-          if (!origin || origin !== process.env.FRONTEND_URL) {
-            logger.warn(`Socket CORS blocked: ${origin}`);
-            return callback(null, false);
+          const allowedOrigins = [
+            process.env.FRONTEND_URL?.replace(/\/$/, ""),
+            "https://collaborative-study-vault-1.onrender.com"
+          ];
+          const requestOrigin = origin?.replace(/\/$/, "");
+          if (!requestOrigin || allowedOrigins.includes(requestOrigin)) {
+            return callback(null, true);
           }
-          return callback(null, true);
+          logger.warn(`Socket CORS blocked: ${origin}`);
+          return callback(null, false);
         }
         // In development, allow localhost and configured origins
         if (!origin) return callback(null, true);

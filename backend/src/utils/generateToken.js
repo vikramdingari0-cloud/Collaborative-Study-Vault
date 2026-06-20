@@ -49,12 +49,12 @@ const generateToken = (res, userId, tokenVersion = 0) => {
   // Set token as HTTP-only cookie
   const isProd = process.env.NODE_ENV === "production";
 
-  res.cookie("jwt", token, {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: isProd ? "lax" : "lax",
-    maxAge: 24 * 60 * 60 * 1000,
-  });
+res.cookie("jwt", token, {
+  httpOnly: true,
+  secure: isProd,
+  sameSite: isProd ? "none" : "lax",
+  maxAge: 24 * 60 * 60 * 1000,
+});
 
   return token;
 };

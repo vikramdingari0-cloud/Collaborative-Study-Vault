@@ -64,6 +64,7 @@ const sendHealthCheck = require("./src/utils/healthCheck");
 // CREATE EXPRESS APPLICATION
 // ============================================
 const app = express();
+app.set("trust proxy", 1);
 
 // ============================================
 // GLOBAL MIDDLEWARE
@@ -74,10 +75,16 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "https://res.cloudinary.com"],
-      connectSrc: ["'self'", "wss:", "ws:"],
+      connectSrc: [
+  "'self'",
+  "https://collaborative-study-vault-1.onrender.com",
+  "https://collaborative-study-vault-kzjt.onrender.com",
+  "wss:",
+  "ws:"
+],
     },
   },
   crossOriginEmbedderPolicy: false,
@@ -123,12 +130,20 @@ app.use(
     origin: (origin, callback) => {
       // In production, require origin and only allow FRONTEND_URL
       if (process.env.NODE_ENV === "production") {
-        if (origin && origin !== process.env.FRONTEND_URL) {
-          logger.warn(`CORS blocked request from origin: ${origin}`);
-          return callback(new Error("Not allowed by CORS"));
-        }
-        return callback(null, true);
-      }
+  const allowedOrigins = [
+    process.env.FRONTEND_URL?.replace(/\/$/, ""),
+    "https://collaborative-study-vault-1.onrender.com"
+  ];
+
+  const requestOrigin = origin?.replace(/\/$/, "");
+
+  if (!requestOrigin || allowedOrigins.includes(requestOrigin)) {
+    return callback(null, true);
+  }
+
+  logger.warn(`CORS blocked request from origin: ${origin}`);
+  return callback(new Error("Not allowed by CORS"));
+}
       // In development, allow localhost origins
       const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
       if (!origin || allowedOrigins.includes(origin) || isLocalhost) {

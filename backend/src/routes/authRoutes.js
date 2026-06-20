@@ -68,8 +68,7 @@ const blockGuestInProduction = (req, res, next) => {
   }
   next();
 };
-router.post("/guest", blockGuestInProduction, guestLogin);
-
+router.post("/guest", guestLogin);
 // ============================================
 // PRIVATE ROUTES (JWT required)
 // ============================================

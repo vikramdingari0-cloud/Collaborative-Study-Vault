@@ -7,6 +7,7 @@
 require("dotenv").config({ path: require("path").join(__dirname, "../../.env") });
 
 const mongoose = require("mongoose");
+const connectDB = require("./db");
 const User = require("../models/User");
 const Workspace = require("../models/Workspace");
 const Folder = require("../models/Folder");
@@ -63,7 +64,7 @@ Use **Generate Study Quiz** and flashcards for active recall on this material.`;
 const seedData = async () => {
   try {
     console.log("[Seeder] Connecting to database...");
-    await mongoose.connect(MONGO_URI);
+    await connectDB();
     console.log("[Seeder] Connected. Clearing collections...");
 
     await User.deleteMany({});

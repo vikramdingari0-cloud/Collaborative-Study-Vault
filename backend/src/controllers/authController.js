@@ -22,12 +22,14 @@ const generateToken = require("../utils/generateToken");
 const authService = require("../services/authService");
 
 const clearAuthCookie = (res) => {
-  res.cookie("jwt", "", {
+res.cookie("jwt", "", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    sameSite: process.env.NODE_ENV === "production"
+        ? "none"
+        : "lax",
     expires: new Date(0),
-  });
+});
 };
 
 // ============================================

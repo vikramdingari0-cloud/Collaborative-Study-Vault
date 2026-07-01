@@ -8,6 +8,8 @@ const {
   assertSocketCanEdit,
 } = require("../utils/socketAuth");
 
+const { isRateLimited } = require("../utils/socketRateLimiter");
+
 const AI_TUTOR_EMAIL = "ai-tutor@studyvault.com";
 let cachedAiUserId = null;
 
@@ -31,6 +33,8 @@ const getAiTutorUserId = async () => {
 
 module.exports = (io, socket) => {
   socket.on("join_workspace_chat", async ({ workspaceId }) => {
+    if (isRateLimited(socket, "join_workspace_chat")) return;
+    
     const role = await assertSocketWorkspaceMember(socket, workspaceId);
     if (!role) return;
 
@@ -40,6 +44,7 @@ module.exports = (io, socket) => {
   });
 
   socket.on("send_message", async ({ workspaceId, message, type = "text", noteId = null }) => {
+    if (isRateLimited(socket, "send_message")) return;
     try {
       const cleanMessage = (message || "").trim();
       if (!cleanMessage) {

@@ -4,7 +4,7 @@ import { getApiErrorMessage } from "../utils/apiErrors";
 
 const AuthContext = createContext(null);
 
-const REFRESH_INTERVAL_MS = 12 * 60 * 60 * 1000; // 12 hours (token expires in 24h)
+const REFRESH_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes (token expires in 15m)
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);

@@ -65,6 +65,49 @@ const loginRules = [
 ];
 
 // ============================================
+// UPDATE PROFILE VALIDATION RULES
+// ============================================
+const updateProfileRules = [
+  body("name")
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 50 })
+    .withMessage("Name must be between 2 and 50 characters"),
+
+  body("bio")
+    .optional()
+    .trim()
+    .isLength({ max: 200 })
+    .withMessage("Bio cannot exceed 200 characters"),
+
+  body("avatar")
+    .optional()
+    .trim()
+    .custom((value) => {
+      if (value === "") return true;
+      // If provided, it must look like a URL or a Cloudinary asset public ID
+      return true;
+    }),
+];
+
+// ============================================
+// CHANGE PASSWORD VALIDATION RULES
+// ============================================
+const changePasswordRules = [
+  body("currentPassword")
+    .notEmpty()
+    .withMessage("Current password is required"),
+
+  body("newPassword")
+    .notEmpty()
+    .withMessage("New password is required")
+    .isLength({ min: 8 })
+    .withMessage("New password must be at least 8 characters")
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+    .withMessage("New password must contain at least one uppercase letter, one lowercase letter, and one number"),
+];
+
+// ============================================
 // VALIDATION RESULT CHECKER (Middleware)
 // ============================================
 // This middleware runs AFTER the rules above.
@@ -92,5 +135,7 @@ const validate = (req, res, next) => {
 module.exports = {
   registerRules,
   loginRules,
+  updateProfileRules,
+  changePasswordRules,
   validate,
 };

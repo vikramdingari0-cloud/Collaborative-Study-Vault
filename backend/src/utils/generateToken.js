@@ -26,6 +26,7 @@
 // ============================================
 
 const jwt = require("jsonwebtoken");
+const { rotateCsrfToken } = require("../middleware/csrfMiddleware");
 
 /**
  * Generate JWT and set it as an HTTP-only cookie
@@ -38,25 +39,43 @@ const jwt = require("jsonwebtoken");
  * @returns {string} The generated JWT token
  */
 const generateToken = (res, userId, tokenVersion = 0) => {
-  // Create the token
-  // jwt.sign(payload, secret, options)
-  const token = jwt.sign(
-    { userId, tokenVersion }, // Payload — includes version for revocation
-    process.env.JWT_SECRET, // Secret — used to verify token authenticity
-    { expiresIn: "24h" } // Options — access token expires in 24 hours
+  // 1. Generate Access Token (expires in 15 minutes)
+  const accessToken = jwt.sign(
+    { userId, tokenVersion, type: "access" }, // include type to prevent reuse
+    process.env.JWT_SECRET,
+    { expiresIn: "15m" }
   );
 
-  // Set token as HTTP-only cookie
+  // 2. Generate Refresh Token (expires in 7 days)
+  const refreshToken = jwt.sign(
+    { userId, tokenVersion, type: "refresh" },
+    process.env.JWT_SECRET,
+    { expiresIn: "7d" }
+  );
+
   const isProd = process.env.NODE_ENV === "production";
 
-res.cookie("jwt", token, {
-  httpOnly: true,
-  secure: isProd,
-  sameSite: isProd ? "none" : "lax",
-  maxAge: 24 * 60 * 60 * 1000,
-});
+  // Set Access Token cookie
+  res.cookie("jwt", accessToken, {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: isProd ? "none" : "lax",
+    maxAge: 15 * 60 * 1000, // 15 minutes
+  });
 
-  return token;
+  // Set Refresh Token cookie (scoped to refresh route)
+  res.cookie("jwt_refresh", refreshToken, {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: isProd ? "none" : "lax",
+    path: "/api/v1/auth/refresh",
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  });
+
+  // Automatically rotate/issue a fresh CSRF token
+  rotateCsrfToken(res);
+
+  return accessToken;
 };
 
 module.exports = generateToken;

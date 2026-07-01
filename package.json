@@ -13,7 +13,8 @@
     "db:test": "npm run db:test --prefix backend",
     "build": "npm run build --prefix frontend",
     "start": "npm start --prefix backend",
-    "dev": "concurrently --kill-others \"npm run backend\" \"npm run frontend\""
+    "dev": "concurrently --kill-others \"npm run backend\" \"npm run frontend\"",
+    "audit:all": "npm audit --omit=dev && npm audit --omit=dev --prefix backend && npm audit --omit=dev --prefix frontend"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

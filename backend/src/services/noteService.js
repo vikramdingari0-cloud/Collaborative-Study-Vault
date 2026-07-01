@@ -155,6 +155,14 @@ const deleteNote = async (noteId) => {
 };
 
 /**
+ * Escape a string for safe use inside a MongoDB $regex expression.
+ * Prevents ReDoS by neutralising special regex characters in user input.
+ * @param {string} str
+ * @returns {string}
+ */
+const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
  * Search notes in workspace by text index or regex fallback
  */
 const searchNotesInWorkspace = async (workspaceId, queryText) => {
@@ -167,11 +175,12 @@ const searchNotesInWorkspace = async (workspaceId, queryText) => {
   })
   .populate("createdBy", "name email avatar");
 
-  // Fallback to regex if text index finds nothing
+  // Fallback to regex if text index finds nothing — escape input to prevent ReDoS
   if (notes.length === 0) {
+    const safeQuery = escapeRegex(queryText.trim().slice(0, 200)); // also cap length
     notes = await Note.find({
       workspace: workspaceId,
-      title: { $regex: queryText, $options: "i" }
+      title: { $regex: safeQuery, $options: "i" }
     })
     .populate("createdBy", "name email avatar");
   }

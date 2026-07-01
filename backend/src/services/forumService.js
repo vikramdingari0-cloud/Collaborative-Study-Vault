@@ -1,4 +1,5 @@
 const ForumThread = require("../models/ForumThread");
+const { sanitizeText } = require("../utils/contentSanitizer");
 
 /**
  * Create a new Q&A discussion thread
@@ -12,9 +13,18 @@ const createThread = async ({ title, content, workspaceId, userId }) => {
     throw error;
   }
 
+  const safeTitle = sanitizeText(title, 300);
+  const safeContent = sanitizeText(content, 10_000);
+
+  if (!safeTitle.trim() || !safeContent.trim()) {
+    const error = new Error("Title and content must not be empty after sanitization");
+    error.statusCode = 400;
+    throw error;
+  }
+
   const thread = await ForumThread.create({
-    title,
-    content,
+    title: safeTitle,
+    content: safeContent,
     workspace: workspaceId,
     author: userId,
     replies: [],
@@ -69,6 +79,13 @@ const addReply = async (threadId, userId, content) => {
     throw error;
   }
 
+  const safeContent = sanitizeText(content, 5_000);
+  if (!safeContent.trim()) {
+    const error = new Error("Reply content must not be empty");
+    error.statusCode = 400;
+    throw error;
+  }
+
   const thread = await ForumThread.findById(threadId);
   if (!thread) {
     const error = new Error("Thread not found");
@@ -76,10 +93,10 @@ const addReply = async (threadId, userId, content) => {
     throw error;
   }
 
-  // Push the reply
+  // Push the sanitized reply
   thread.replies.push({
     author: userId,
-    content,
+    content: safeContent,
     isAccepted: false,
   });
 

@@ -14,6 +14,8 @@ const presenceSocket = require("../sockets/presenceSocket");
 const workspaceSocket = require("../sockets/workspaceSocket");
 const whiteboardSocket = require("../sockets/whiteboardSocket");
 const logger = require("../utils/logger");
+const { applySocketRateLimit } = require("../utils/socketRateLimiter");
+
 
 let io;
 
@@ -74,12 +76,12 @@ const init = (server) => {
       origin: (origin, callback) => {
         // Require origin in production
         if (process.env.NODE_ENV === "production") {
-          const allowedOrigins = [
-            process.env.FRONTEND_URL?.replace(/\/$/, ""),
-            "https://collaborative-study-vault-1.onrender.com"
-          ];
+          const productionAllowed = [];
+          if (process.env.FRONTEND_URL) {
+            productionAllowed.push(process.env.FRONTEND_URL.replace(/\/$/, ""));
+          }
           const requestOrigin = origin?.replace(/\/$/, "");
-          if (!requestOrigin || allowedOrigins.includes(requestOrigin)) {
+          if (!requestOrigin || productionAllowed.includes(requestOrigin)) {
             return callback(null, true);
           }
           logger.warn(`Socket CORS blocked: ${origin}`);
@@ -105,6 +107,9 @@ const init = (server) => {
 
   io.on("connection", (socket) => {
     logger.info(`🔌 Realtime client connected [Socket ID: ${socket.id}] [User: ${socket.user?.name}]`);
+
+    // Apply per-socket, per-event rate limiting (DoS protection)
+    applySocketRateLimit(socket);
 
     // Attach domain-specific socket handlers
     chatSocket(io, socket);

@@ -11,7 +11,9 @@
     "start": "node server.js",
     "seed": "node src/config/seed.js",
     "db:test": "node scripts/test-db-connection.js",
-    "fix:notes": "node scripts/fix-note-content.js"
+    "fix:notes": "node scripts/fix-note-content.js",
+    "audit": "npm audit --omit=dev",
+    "audit:fix": "npm audit fix"
   },
   "keywords": [],
   "author": "",

@@ -3,6 +3,7 @@
 // ============================================
 
 const Chat = require("../models/Chat");
+const { sanitizeText } = require("../utils/contentSanitizer");
 
 /**
  * Get chronological chat history for a workspace study group
@@ -22,15 +23,22 @@ const getWorkspaceMessages = async (workspaceId, limit = 50, before = null) => {
 };
 
 /**
- * Create a new message in a workspace study group
+ * Create a new message in a workspace study group.
+ * User-generated text messages are sanitized before storage.
+ * AI and system messages are trusted (generated server-side) and not modified.
  * @param {Object} messageData - { workspaceId, senderId, message, type }
  * @returns {Object} Saved message
  */
 const createMessage = async ({ workspaceId, senderId, message, type = "text" }) => {
+  // Sanitize only user-generated messages; AI/system content is server-controlled
+  const safeMessage = (type === "text")
+    ? sanitizeText(message, 2_000)
+    : message;
+
   const newMessage = await Chat.create({
     workspace: workspaceId,
     sender: senderId,
-    message,
+    message: safeMessage,
     type,
   });
 

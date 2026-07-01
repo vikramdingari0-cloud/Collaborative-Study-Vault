@@ -6,6 +6,7 @@
 // ============================================
 
 const crypto = require("crypto");
+const mongoose = require("mongoose");
 
 const Workspace = require("../models/Workspace");
 const User = require("../models/User");
@@ -13,6 +14,13 @@ const Folder = require("../models/Folder");
 const Note = require("../models/Note");
 const Chat = require("../models/Chat");
 const Quiz = require("../models/Quiz");
+const File = require("../models/File");
+const PastPaper = require("../models/PastPaper");
+const ForumThread = require("../models/ForumThread");
+const Whiteboard = require("../models/Whiteboard");
+const { cloudinary, isCloudinaryConfigured } = require("../config/cloudinary");
+const logger = require("../utils/logger");
+
 
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
@@ -183,7 +191,15 @@ const updateWorkspace = async (workspaceId, userId, updateData) => {
 };
 
 /**
- * Delete workspace & perform recursive cleanup of all notes/folders inside it
+ * Delete workspace & perform recursive cleanup of ALL nested content atomically.
+ * Uses a MongoDB session transaction to guarantee all-or-nothing consistency.
+ * Cascade order:
+ *   1. Files   → delete Cloudinary assets + File docs
+ *   2. PastPapers → delete Cloudinary assets + PastPaper docs
+ *   3. Folders, Notes, Chats, Quizzes, ForumThreads → delete docs
+ *   4. Remove workspace ref from all user documents
+ *   5. Delete the Workspace document itself
+ *
  * @param {string} workspaceId - Workspace ID
  * @param {string} userId - Requesting User ID
  */
@@ -204,30 +220,75 @@ const deleteWorkspace = async (workspaceId, userId) => {
     throw error;
   }
 
-  // --- RECURSIVE CLEANUP ---
-  // 1. Delete all folders belonging to this workspace
-  await Folder.deleteMany({ workspace: workspaceId });
+  // ---- Cloudinary cleanup (outside transaction — external API calls) ----
+  // Delete all workspace File assets from Cloudinary first
+  if (isCloudinaryConfigured()) {
+    const filesToDelete = await File.find({ workspace: workspaceId }).select("publicId fileType");
+    for (const f of filesToDelete) {
+      try {
+        const isImage = ["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(f.fileType);
+        await cloudinary.uploader.destroy(f.publicId, { resource_type: isImage ? "image" : "raw" });
+      } catch (err) {
+        logger.error(`Cloudinary cleanup failed for file ${f.publicId}: ${err.message}`);
+      }
+    }
 
-  // 2. Delete all notes belonging to this workspace
-  await Note.deleteMany({ workspace: workspaceId });
+    const papersToDelete = await PastPaper.find({ workspace: workspaceId }).select("publicId");
+    for (const p of papersToDelete) {
+      try {
+        await cloudinary.uploader.destroy(p.publicId, { resource_type: "raw" });
+      } catch (err) {
+        logger.error(`Cloudinary cleanup failed for past paper ${p.publicId}: ${err.message}`);
+      }
+    }
+  }
 
-  // 3. Delete all chat messages belonging to this workspace
-  await Chat.deleteMany({ workspace: workspaceId });
+  // ---- Database deletion inside a transaction ----
+  const session = await mongoose.startSession();
+  try {
+    await session.withTransaction(async () => {
+      // 1. Delete all folders
+      await Folder.deleteMany({ workspace: workspaceId }, { session });
 
-  // 4. Delete all quizzes belonging to this workspace
-  await Quiz.deleteMany({ workspace: workspaceId });
+      // 2. Delete all notes
+      await Note.deleteMany({ workspace: workspaceId }, { session });
 
-  // 5. Remove workspace from all users' workspaces arrays (handling nulls/populated objects)
-  const memberIds = workspace.members
-    .map(m => m.user ? (m.user._id || m.user) : null)
-    .filter(Boolean);
-  await User.updateMany(
-    { _id: { $in: memberIds } },
-    { $pull: { workspaces: workspaceId } }
-  );
+      // 3. Delete all chat messages
+      await Chat.deleteMany({ workspace: workspaceId }, { session });
 
-  // 6. Delete the workspace itself
-  await Workspace.findByIdAndDelete(workspaceId);
+      // 4. Delete all quizzes
+      await Quiz.deleteMany({ workspace: workspaceId }, { session });
+
+      // 5. Delete all file metadata documents
+      await File.deleteMany({ workspace: workspaceId }, { session });
+
+      // 6. Delete all past paper metadata documents
+      await PastPaper.deleteMany({ workspace: workspaceId }, { session });
+
+      // 7. Delete all forum threads
+      await ForumThread.deleteMany({ workspace: workspaceId }, { session });
+
+      // 8. Delete whiteboard document
+      await Whiteboard.deleteMany({ workspace: workspaceId }, { session });
+
+      // 9. Remove workspace from all member users' workspaces arrays
+      const memberIds = workspace.members
+        .map((m) => (m.user ? m.user._id || m.user : null))
+        .filter(Boolean);
+      if (memberIds.length > 0) {
+        await User.updateMany(
+          { _id: { $in: memberIds } },
+          { $pull: { workspaces: workspace._id } },
+          { session }
+        );
+      }
+
+      // 10. Delete the workspace document itself
+      await Workspace.findByIdAndDelete(workspaceId, { session });
+    });
+  } finally {
+    session.endSession();
+  }
 };
 
 /**

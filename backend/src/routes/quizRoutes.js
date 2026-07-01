@@ -26,11 +26,24 @@ const {
   requireEditorFromContext,
 } = require("../middleware/workspaceAuth");
 
+const {
+  generateQuizRules,
+  submitAttemptRules,
+  validate,
+} = require("../validators/domainValidator");
+
 // Require JWT auth token session
 router.use(protect);
 
 // POST /api/v1/quizzes/generate -> Trigger generation of a new quiz
-router.post("/generate", requireResourceWorkspaceMember(Note, "noteId", "noteId"), requireEditorFromContext, generateQuiz);
+router.post(
+  "/generate",
+  generateQuizRules,
+  validate,
+  requireResourceWorkspaceMember(Note, "noteId", "noteId"),
+  requireEditorFromContext,
+  generateQuiz
+);
 
 // GET /api/v1/quizzes/workspace/:workspaceId -> Get all quizzes in a workspace
 router.get("/workspace/:workspaceId", requireWorkspaceMember, getWorkspaceQuizzes);
@@ -39,7 +52,14 @@ router.get("/workspace/:workspaceId", requireWorkspaceMember, getWorkspaceQuizze
 router.get("/:id", requireResourceWorkspaceMember(Quiz), getQuizById);
 
 // POST /api/v1/quizzes/:id/attempt -> Submit a score attempt
-router.post("/:id/attempt", requireResourceWorkspaceMember(Quiz), requireEditorFromContext, submitAttempt);
+router.post(
+  "/:id/attempt",
+  submitAttemptRules,
+  validate,
+  requireResourceWorkspaceMember(Quiz),
+  requireEditorFromContext,
+  submitAttempt
+);
 
 // DELETE /api/v1/quizzes/:id -> Delete a quiz (owner or admin)
 router.delete("/:id", requireResourceOwnerOrAdmin(Quiz), deleteQuiz);

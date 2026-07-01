@@ -1,134 +1,69 @@
-# Frontend — Collaborative Study Vault
+# Collaborative Study Vault - Frontend
 
-This is the React frontend for **Collaborative Study Vault**. It's built with React 19 and Vite, and handles everything the user sees — login/register pages, the dashboard, workspaces, real-time note editing, chat, whiteboard, quizzes, and AI-powered study tools.
+Welcome to the frontend of the Collaborative Study Vault! This is the user-facing application where all the collaboration actually happens. It's a modern, sleek, and highly interactive React application built with Vite and Tailwind CSS.
 
-## What it does
+##  Highlights & Features
 
-- **Authentication UI** — sign up, log in, or jump in instantly with 1-click guest login (no email needed).
-- **Dashboard** — lists all your workspaces, lets you create new ones, and join existing ones via invite code.
-- **Workspace view** — folders, notes, files, past papers, forum, chat, whiteboard, and AI tools all live inside each workspace.
-- **Markdown editor** — write notes in markdown with a live preview. Supports real-time collaborative editing via sockets (edit locking so two people don't clash).
-- **Group chat** — real-time messaging inside each workspace. Supports `/ai` commands to ask the AI tutor questions right from the chat.
-- **Whiteboard** — collaborative drawing canvas. Everyone in the workspace sees strokes in real-time.
-- **AI study tools** — generate summaries, flashcards, and active-recall quizzes from your notes. Works with Google Gemini or falls back to a built-in local engine.
-- **Forum** — threaded discussion board for each workspace (doubt clearance, Q&A).
-- **Past papers** — upload and browse past exam papers organized by workspace.
+- **Modern UI/UX**: Built with standard React and a beautiful custom glassmorphic styling system.
+- **Real-Time Workspaces**: Jump into a workspace and see changes happen live.
+- **Collaborative Whiteboard**: Draw, erase, and map out concepts with your peers in real-time. Supports grid backgrounds, different tools (brush, shapes), and image exports.
+- **Live Chat & AI Tutor**: Chat with your study group, or use the `/ai` command to bring our AI Tutor into the conversation to help answer tricky questions!
+- **AI Flashcards & Quizzes**: Instantly generate study materials based on your workspace notes using our AI engine.
+- **Guest Login**: One-click demo access so you can try everything out without creating an account.
 
-## Tech stack
+##  Tech Stack
 
-| Layer | Tech |
-|-------|------|
-| Framework | React 19 |
-| Build tool | Vite 8 |
-| Routing | React Router v7 |
-| HTTP client | Axios |
-| Real-time | Socket.io Client |
-| Icons | Lucide React |
-| Sanitization | DOMPurify |
-| Styling | Vanilla CSS (custom design system) |
+- **React 18** (Bootstrapped with Vite for lightning-fast builds)
+- **React Router DOM** for navigation
+- **Socket.io-client** for connecting to our real-time backend
+- **Axios** for API requests (configured with interceptors for seamless token refresh)
+- **Lucide React** for crisp, scalable icons
 
-## Getting started
+##  Getting Started Locally
 
-### Prerequisites
+### 1. Prerequisites
+Make sure you have Node.js installed.
 
-- Node.js 18+ installed
-- The backend server running (see `backend/README.md`)
-
-### Install dependencies
-
+### 2. Install Dependencies
 ```bash
-cd frontend
 npm install
 ```
 
-### Environment
+### 3. Environment Setup
+Create a `.env` file in the `frontend` directory. 
 
-The app looks for a `VITE_API_URL` environment variable to know where the backend API lives. In development you usually don't need to set it — Vite's proxy handles it.
-
-For production builds, set it to your deployed backend URL:
-
-```bash
-VITE_API_URL=https://your-backend.onrender.com
+```env
+# Point this to your local backend server
+VITE_API_URL=http://localhost:5000/api
+VITE_SOCKET_URL=http://localhost:5000
 ```
+*Note: If these aren't set, the app will try to fall back to the production URLs automatically, but it's best to configure them for local development!*
 
-If `VITE_API_URL` isn't set, the app automatically falls back to the production URL configured in the code.
-
-### Run the dev server
-
+### 4. Start the Dev Server
 ```bash
 npm run dev
 ```
+Vite should spin up the app incredibly fast, usually on `http://localhost:5173`.
 
-Opens at [http://localhost:5173](http://localhost:5173). Vite proxies `/api` and `/socket.io` requests to the backend at `localhost:5000`.
-
-### Build for production
-
+### 5. Build for Production
+To create a production-ready bundle:
 ```bash
 npm run build
 ```
-
-Output goes to `dist/`. The backend's Express server can serve this folder in production mode.
-
-## Folder structure
-
-```
-frontend/
-├── index.html              # Entry HTML
-├── vite.config.js          # Vite config (proxy, build settings)
-├── package.json
-├── public/                 # Static assets
-└── src/
-    ├── main.jsx            # App entry point
-    ├── App.jsx             # Root component
-    ├── App.css             # Global app styles
-    ├── index.css           # Design system / CSS variables
-    ├── api/
-    │   └── axiosInstance.js # Axios client (base URL, cookie auth)
-    ├── context/
-    │   └── AuthContext.jsx  # Auth state (login, logout, guest)
-    ├── hooks/              # Custom React hooks
-    ├── layouts/            # Page layout wrappers
-    ├── pages/
-    │   ├── HomePage.jsx        # Landing page
-    │   ├── LoginPage.jsx       # Login form
-    │   ├── RegisterPage.jsx    # Registration form
-    │   ├── DashboardPage.jsx   # Workspace listing
-    │   └── WorkspacePage.jsx   # Full workspace (notes, chat, AI, etc.)
-    ├── components/
-    │   ├── ui/             # Reusable UI elements (buttons, modals, etc.)
-    │   ├── chat/           # Chat panel component
-    │   ├── editor/         # Markdown editor + preview
-    │   ├── onboarding/     # First-time user flow
-    │   └── workspace/      # Whiteboard, QuizModal, Forum, PastPapers
-    ├── services/           # API service functions
-    ├── sockets/
-    │   └── socket.js       # Socket.io client instance
-    ├── routes/             # Route definitions
-    ├── styles/             # Additional CSS modules
-    └── utils/              # Helper functions
+And to preview the built bundle:
+```bash
+npm run preview
 ```
 
-## Key design decisions
+## 📂 Project Structure
 
-- **No state management library** — we keep it simple with React Context for auth state. Workspace data is fetched on mount and passed via props.
-- **Socket.io for everything real-time** — notes, chat, whiteboard, and presence all go through the same socket connection. The socket auto-reconnects if the connection drops.
-- **CSS-first approach** — no Tailwind or CSS-in-JS. The design system lives in `index.css` with CSS custom properties for colors, spacing, and typography. This keeps the bundle small and the styles predictable.
-- **Graceful fallbacks** — if the backend AI is unavailable, the UI still works. Quiz generation and summaries just show a friendly error instead of crashing.
+- `/src/api` - Axios instances and API helper functions.
+- `/src/components` - Reusable UI components (buttons, modals, navbar) and feature-specific components (Workspace, Whiteboard, Flashcards).
+- `/src/context` - React Contexts for global state management (Auth, Theme, Toasts).
+- `/src/pages` - Main page views (Home, Dashboard, Login, Register, WorkspacePage).
+- `/src/sockets` - Socket.io connection setup and event listeners.
 
-## Scripts
+## 🎨 Styling Notes
+We utilize a highly customized stylesheet (`index.css`) designed to give the app a premium, "wow" factor out of the box with dynamic animations and dark-mode optimization.
 
-| Command | What it does |
-|---------|-------------|
-| `npm run dev` | Start Vite dev server with HMR |
-| `npm run build` | Production build to `dist/` |
-| `npm run preview` | Preview the production build locally |
-
-## Deployment
-
-This frontend is deployed on **Render** as a static site. On Render:
-
-1. Set build command to `npm install && npm run build`
-2. Set publish directory to `dist`
-3. Add environment variable `VITE_API_URL` pointing to your backend URL
-
-Alternatively, the backend serves the built frontend in production mode — just run `npm run build` here, and start the backend with `NODE_ENV=production`.
+Enjoy building and studying!

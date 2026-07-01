@@ -104,6 +104,20 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+
+    // Brute-force login protection
+    // loginAttempts: count of consecutive failed logins
+    // lockUntil: timestamp until which the account is locked
+    loginAttempts: {
+      type: Number,
+      default: 0,
+      select: false, // Never expose in API responses
+    },
+
+    lockUntil: {
+      type: Date,
+      select: false,
+    },
   },
   {
     // Mongoose options

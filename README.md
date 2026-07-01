@@ -1,236 +1,90 @@
-# Collaborative Study Vault
+# Collaborative Study Vault 
 
-A full-stack collaborative learning platform where students can create study workspaces, take notes together in real-time, chat, draw on a shared whiteboard, and use AI to generate quizzes, summaries, and flashcards from their notes.
+Welcome to the **Collaborative Study Vault**! This is a comprehensive, real-time study platform designed to bring students together in collaborative workspaces. Whether you're mapping out complex concepts on a shared whiteboard, chatting about assignments, or getting help from a built-in AI Tutor, this platform has you covered.
 
-Built this as a way to solve the problem of scattered study materials — instead of passing around Google Docs and WhatsApp groups, everything lives in one place.
+##  Key Features
 
-## Live demo
+### 1. Collaborative Workspaces
+Create or join dedicated workspaces for your study sessions. Invite peers, share notes, and collaborate in real-time.
 
-| | URL |
-|-|-----|
-| Frontend | [collaborative-study-vault-1.onrender.com](https://collaborative-study-vault-1.onrender.com/) |
-| Backend API | [collaborative-study-vault-kzjt.onrender.com](https://collaborative-study-vault-kzjt.onrender.com/) |
+### 2. Real-Time Whiteboard
+A highly responsive, real-time shared drawing canvas. It supports freehand drawing, shape tools, grid backgrounds, and instant synchronization across all connected clients.
 
-> **Tip:** Click **Guest Login** on the landing page to explore instantly — no sign-up needed.
+### 3. Integrated AI Tutor
+Stuck on a concept? Type `/ai` in the workspace chat to invoke our Gemini-powered AI Tutor. It reads your workspace notes and chat history to provide context-aware, highly relevant answers to your questions.
 
-## What you can do with it
+### 4. AI-Generated Flashcards & Quizzes
+Turn your workspace notes into study materials instantly! With one click, our AI reads your notes and generates custom flashcards and multiple-choice quizzes to test your knowledge.
 
-- **Create study workspaces** — organize your study group. Each workspace gets its own folders, notes, chat, forum, whiteboard, and file storage. Invite people via email or a 6-character join code.
+### 5. Secure Authentication
+Robust user accounts secured with JWTs (utilizing both access and refresh tokens stored in HttpOnly cookies). 
+*Want to just take a look around? Use the 1-click **Guest Login** to immediately explore the platform without signing up!*
 
-- **Write notes together** — markdown editor with live preview. When someone's editing a note, it locks for others (so you don't overwrite each other). Changes sync in real-time via WebSockets.
+### 6. Live Chat
+Chat with your study group in real-time. Every workspace comes with a dedicated chat room for text and AI interactions.
 
-- **AI-powered study tools** — highlight a note and generate:
-  - **Summaries** — condenses long notes into key points
-  - **Flashcards** — term/definition pairs for quick review
-  - **Quizzes** — active-recall multiple choice questions with scoring
+##  System Architecture
 
-  Uses Google Gemini 2.0 Flash when an API key is configured. Works without one too — there's a built-in local engine that handles the basics.
+This project is a monorepo separated into a `frontend` and `backend`.
 
-- **Group chat** — real-time messaging inside each workspace. Type `/ai <question>` to ask the AI tutor something directly in chat.
+- **Frontend**: A modern React application built with Vite. It features a custom glassmorphic design system and leverages Socket.io-client for real-time interactivity.
+- **Backend**: A robust Node.js and Express server connected to MongoDB. It handles authentication, API routes, AI service orchestration, and manages the Socket.io server for real-time collaboration.
 
-- **Shared whiteboard** — collaborative drawing canvas. Everyone sees strokes in real-time. Great for working through diagrams and problems together.
+##  Getting Started
 
-- **Discussion forum** — threaded Q&A board per workspace. Post questions, reply, and clear doubts.
+To run this project locally, you will need to start both the backend and frontend servers.
 
-- **Past papers** — upload and browse previous exam papers organized by workspace.
-
-- **Guest mode** — one-click login with no email required. Guest accounts auto-delete after 24 hours.
-
-- **Version history** — accidentally deleted your notes? Roll back to a previous version.
-
-## Tech stack
-
-| | Technology |
-|-|-----------|
-| **Frontend** | React 19, Vite 8, React Router v7, Socket.io Client, Axios, Lucide Icons |
-| **Backend** | Node.js, Express 5, Socket.io, JWT (HTTP-only cookies), Multer, Winston |
-| **Database** | MongoDB (Mongoose 8) |
-| **AI** | Google Gemini 2.0 Flash API + local NLP fallback engine |
-| **File storage** | Cloudinary (optional, falls back to local uploads) |
-| **Deployment** | Render (frontend as static site, backend as web service) |
-
-## Quick start
-
-### 1. Clone the repo
-
+### 1. Clone the Repository
 ```bash
 git clone https://github.com/vikramdingari0-cloud/Collaborative-Study-Vault.git
 cd Collaborative-Study-Vault
 ```
 
-### 2. Set up environment variables
-
+### 2. Backend Setup
+Navigate to the backend folder and install dependencies:
 ```bash
-cp backend/.env.example backend/.env
+cd backend
+npm install
 ```
-
-Open `backend/.env` and fill in:
-
-| Variable | Required? | What to put |
-|----------|-----------|-------------|
-| `MONGO_URI` | **Yes** | Your MongoDB connection string (Atlas recommended) |
-| `JWT_SECRET` | **Yes** | Any long random string — used to sign auth tokens |
-| `GEMINI_API_KEY` | No | Google Gemini API key. Leave blank to use the local AI engine |
-| `FRONTEND_URL` | No | Defaults to `http://localhost:5173` |
-
-<details>
-<summary><strong>MongoDB Atlas setup (click to expand)</strong></summary>
-
-If you don't have MongoDB installed locally, Atlas gives you a free cloud database:
-
-1. Go to [MongoDB Atlas](https://cloud.mongodb.com) and create a free cluster
-2. **Database Access** → create a user with a password
-3. **Network Access** → allow `0.0.0.0/0` (for development)
-4. **Connect** → **Drivers** → copy the connection string
-5. Replace `<password>` with your actual password (URL-encode special characters like `@` → `%40`)
-6. Make sure there's a database name in the path: `.../collaborative-study-vault?retryWrites=true&w=majority`
-
-**Windows DNS issue?** If you get `querySrv ECONNREFUSED`, add this to your `.env`:
+Create a `.env` file in the `backend` folder:
 ```env
-MONGO_DNS_SERVERS=8.8.8.8,1.1.1.1
+PORT=5000
+MONGO_URI=your_mongodb_connection_string
+JWT_SECRET=super_secret
+JWT_REFRESH_SECRET=super_secret_refresh
+FRONTEND_URL=http://localhost:5173
+GEMINI_API_KEY=your_gemini_api_key_here # For AI Features
 ```
-
-</details>
-
-### 3. Install everything
-
-```bash
-npm run install-all
-```
-
-This installs dependencies for the root, backend, and frontend in one go.
-
-### 4. Seed demo data (optional but recommended)
-
-```bash
-npm run seed
-```
-
-This creates a demo account and a pre-built workspace so you can test things immediately:
-
-| | Value |
-|-|-------|
-| Email | `recruiter@university.edu` |
-| Password | `password123` |
-| Workspace | Organic Chemistry II |
-| Join code | `SV9D4A` |
-
-### 5. Start development servers
-
+Start the backend server:
 ```bash
 npm run dev
 ```
 
-This runs both the backend API and the Vite dev server at the same time (using `concurrently`).
-
-| | URL |
-|-|-----|
-| Frontend | http://localhost:5173 |
-| Backend API | http://localhost:5000 |
-| Health check | http://localhost:5000/api/health |
-
-## Try it out
-
-1. Open http://localhost:5173
-2. Click **Guest Login** (or sign in with the seeded account: `recruiter@university.edu` / `password123`)
-3. Open the **Organic Chemistry II** workspace (or create your own)
-4. Try editing a note — you'll see the markdown editor with live preview
-5. Click the AI buttons to generate a summary, flashcards, or quiz
-6. Open the chat panel and type `/ai explain nucleophilic substitution`
-7. Try the whiteboard — draw something and open the same workspace in another tab to see it sync
-
-## Project structure
-
-```
-Collaborative-Study-Vault/
-├── backend/                # Node.js + Express API server
-│   ├── server.js           #   Entry point
-│   ├── src/
-│   │   ├── config/         #   DB connection, socket setup, seeder
-│   │   ├── controllers/    #   Route handlers (auth, notes, AI, etc.)
-│   │   ├── models/         #   Mongoose schemas (User, Workspace, Note, etc.)
-│   │   ├── routes/         #   Express route definitions
-│   │   ├── middleware/     #   Auth middleware, error handling
-│   │   ├── services/       #   Business logic (AI service)
-│   │   ├── ai/            #   Local AI engine (no API key needed)
-│   │   ├── sockets/       #   Socket.io event handlers
-│   │   ├── utils/         #   Gemini client, helpers
-│   │   ├── validators/    #   Input validation
-│   │   └── jobs/          #   Background jobs (guest cleanup)
-│   ├── scripts/           #   DB test, migration scripts
-│   └── .env.example       #   Environment variable template
-│
-├── frontend/               # React + Vite SPA
-│   ├── index.html          #   Entry HTML
-│   ├── vite.config.js      #   Vite config (proxy, build)
-│   └── src/
-│       ├── pages/          #   Home, Login, Register, Dashboard, Workspace
-│       ├── components/     #   UI, Chat, Editor, Whiteboard, Forum, Quiz
-│       ├── context/        #   Auth context (login state)
-│       ├── api/            #   Axios instance
-│       ├── sockets/        #   Socket.io client
-│       ├── services/       #   API service functions
-│       ├── hooks/          #   Custom React hooks
-│       ├── layouts/        #   Page layout wrappers
-│       ├── routes/         #   Route definitions
-│       └── styles/         #   CSS modules
-│
-├── docs/                   # Documentation
-└── package.json            # Monorepo scripts (install-all, dev, build, etc.)
-```
-
-## Scripts (from project root)
-
-| Command | What it does |
-|---------|-------------|
-| `npm run install-all` | Installs deps for root + backend + frontend |
-| `npm run dev` | Runs backend and frontend dev servers together |
-| `npm run seed` | Seeds MongoDB with demo data |
-| `npm run build` | Builds the frontend for production |
-| `npm start` | Starts the production backend (serves built frontend) |
-| `npm run db:test` | Tests MongoDB connectivity |
-
-## Deploying to production
-
-The app is deployed on [Render](https://render.com) with the frontend and backend as separate services.
-
-### Backend (Web Service)
-
-- **Build command:** `npm install`
-- **Start command:** `npm start`
-- **Environment variables:** `MONGO_URI`, `JWT_SECRET`, `NODE_ENV=production`, `FRONTEND_URL`
-
-### Frontend (Static Site)
-
-- **Build command:** `npm install && npm run build`
-- **Publish directory:** `dist`
-- **Environment variable:** `VITE_API_URL=https://your-backend.onrender.com`
-
-### Single-server deployment (alternative)
-
-You can also run everything on one server. The Express backend serves the built React app from `frontend/dist/` when `NODE_ENV=production`:
-
+### 3. Frontend Setup
+Open a new terminal, navigate to the frontend folder, and install dependencies:
 ```bash
-npm run build
-NODE_ENV=production npm start
+cd frontend
+npm install
+```
+Create a `.env` file in the `frontend` folder:
+```env
+VITE_API_URL=http://localhost:5000/api
+VITE_SOCKET_URL=http://localhost:5000
+```
+Start the frontend server:
+```bash
+npm run dev
 ```
 
-## How the AI works
+### 4. Explore
+Open your browser to `http://localhost:5173` and click the "Guest Demo Login" button to dive straight into a workspace!
 
-The AI system has a dual-engine setup:
+##  Project Health & Reliability
 
-1. **Gemini mode** — when `GEMINI_API_KEY` is set, the app sends note content to Google's Gemini 2.0 Flash model. It generates structured summaries, flashcard sets, and multiple-choice quizzes. If Gemini rate-limits the request (429 error), the system automatically falls back to local mode for 15 minutes.
+This project is built with reliability in mind:
+- **AI Fallbacks**: If the Gemini API rate-limits you or the key isn't set, the app won't crash. It seamlessly switches to a Mock AI Engine to ensure you can keep studying.
+- **Connection Resilience**: Fallback URLs are configured in the frontend so that if local environment variables are missing, it attempts to connect to the production environment.
+- **Security**: Strict CORS policies, Helmet security headers, and rate limiting are enforced on the backend.
 
-2. **Local mode** — a rule-based NLP engine that runs on the server with zero external dependencies. It extracts key terms, builds fill-in-the-blank questions, and creates basic summaries. Not as good as Gemini, but works perfectly fine for demos and testing.
-
-Set `FORCE_LOCAL_AI=true` in your `.env` to always use local mode (handy if you don't have a Gemini API key or don't want to worry about rate limits during a demo).
-
-## Author
-
-**Dingari Vikram**
-
-- GitHub: [@vikramdingari0-cloud](https://github.com/vikramdingari0-cloud)
-
-## License
-
-MIT
+---
+Built for seamless studying and collaboration. 🧠⚡

@@ -18,11 +18,17 @@ const {
   requireResourceWorkspaceMember,
 } = require("../middleware/workspaceAuth");
 
+const {
+  createThreadRules,
+  createReplyRules,
+  validate,
+} = require("../validators/domainValidator");
+
 // Authenticate all routes
 router.use(protect);
 
 // Create thread
-router.post("/", requireWorkspaceMemberFromBody, createThread);
+router.post("/", createThreadRules, validate, requireWorkspaceMemberFromBody, createThread);
 
 // Get all threads for workspace
 router.get("/workspace/:workspaceId", requireWorkspaceMember, getWorkspaceThreads);
@@ -31,7 +37,7 @@ router.get("/workspace/:workspaceId", requireWorkspaceMember, getWorkspaceThread
 router.get("/thread/:id", requireResourceWorkspaceMember(ForumThread), getThreadById);
 
 // Create reply to thread
-router.post("/:id/replies", requireResourceWorkspaceMember(ForumThread), createReply);
+router.post("/:id/replies", createReplyRules, validate, requireResourceWorkspaceMember(ForumThread), createReply);
 
 // Accept reply as best answer (requires workspace membership since it's a sub-operation;
 // the controller itself checks that the user is the thread author)

@@ -39,6 +39,7 @@ const requireDb = require("./src/middleware/dbMiddleware");
 const notFoundMiddleware = require("./src/middleware/notFoundMiddleware");
 const errorMiddleware = require("./src/middleware/errorMiddleware");
 const { apiLimiter, authLimiter, aiLimiter } = require("./src/middleware/rateLimiter");
+const { csrfProtection } = require("./src/middleware/csrfMiddleware");
 
 // ---- Import utilities ----
 const logger = require("./src/utils/logger");
@@ -71,6 +72,10 @@ app.set("trust proxy", 1);
 // ============================================
 
 // Security headers (XSS protection, clickjacking prevention, MIME sniffing, etc.)
+const connectSrc = ["'self'", "wss:", "ws:"];
+if (process.env.FRONTEND_URL) connectSrc.push(process.env.FRONTEND_URL);
+if (process.env.BACKEND_URL) connectSrc.push(process.env.BACKEND_URL);
+
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -78,13 +83,7 @@ app.use(helmet({
       scriptSrc: ["'self'", "'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "https://res.cloudinary.com"],
-      connectSrc: [
-  "'self'",
-  "https://collaborative-study-vault-1.onrender.com",
-  "https://collaborative-study-vault-kzjt.onrender.com",
-  "wss:",
-  "ws:"
-],
+      connectSrc,
     },
   },
   crossOriginEmbedderPolicy: false,
@@ -128,22 +127,22 @@ if (process.env.FRONTEND_URL) {
 app.use(
   cors({
     origin: (origin, callback) => {
-      // In production, require origin and only allow FRONTEND_URL
+      // In production, only allow FRONTEND_URL and same-origin (null origin)
       if (process.env.NODE_ENV === "production") {
-  const allowedOrigins = [
-    process.env.FRONTEND_URL?.replace(/\/$/, ""),
-    "https://collaborative-study-vault-1.onrender.com"
-  ];
+        const productionAllowed = [];
+        if (process.env.FRONTEND_URL) {
+          productionAllowed.push(process.env.FRONTEND_URL.replace(/\/$/, ""));
+        }
 
-  const requestOrigin = origin?.replace(/\/$/, "");
+        const requestOrigin = origin?.replace(/\/$/, "");
+        if (!requestOrigin || productionAllowed.includes(requestOrigin)) {
+          return callback(null, true);
+        }
 
-  if (!requestOrigin || allowedOrigins.includes(requestOrigin)) {
-    return callback(null, true);
-  }
+        logger.warn(`CORS blocked request from origin: ${origin}`);
+        return callback(new Error("Not allowed by CORS"));
+      }
 
-  logger.warn(`CORS blocked request from origin: ${origin}`);
-  return callback(new Error("Not allowed by CORS"));
-}
       // In development, allow localhost origins
       const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
       if (!origin || allowedOrigins.includes(origin) || isLocalhost) {
@@ -172,6 +171,9 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 // Parse cookies from incoming requests
 // Without this, req.cookies is undefined (JWT won't work!)
 app.use(cookieParser());
+
+// CSRF Protection (Double-Submit Cookie Pattern)
+app.use(csrfProtection);
 
 // ============================================
 // API ROUTES

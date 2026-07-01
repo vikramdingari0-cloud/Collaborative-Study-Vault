@@ -16,20 +16,37 @@
 // This keeps controllers clean and focused.
 // ============================================
 
+const jwt = require("jsonwebtoken");
 const asyncHandler = require("../utils/asyncHandler");
 const apiResponse = require("../utils/apiResponse");
 const generateToken = require("../utils/generateToken");
 const authService = require("../services/authService");
 
 const clearAuthCookie = (res) => {
-res.cookie("jwt", "", {
+  const isProd = process.env.NODE_ENV === "production";
+  res.cookie("jwt", "", {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production"
-        ? "none"
-        : "lax",
+    secure: isProd,
+    sameSite: isProd ? "none" : "lax",
     expires: new Date(0),
-});
+  });
+  
+  // Clear refresh token cookie on logout
+  res.cookie("jwt_refresh", "", {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: isProd ? "none" : "lax",
+    path: "/api/v1/auth/refresh",
+    expires: new Date(0),
+  });
+  
+  // Clear CSRF cookie on logout
+  res.cookie("XSRF-TOKEN", "", {
+    httpOnly: false,
+    secure: isProd,
+    sameSite: isProd ? "none" : "lax",
+    expires: new Date(0),
+  });
 };
 
 // ============================================
@@ -110,11 +127,35 @@ const guestLogin = asyncHandler(async (req, res) => {
 // @access  Private
 // ============================================
 const refreshToken = asyncHandler(async (req, res) => {
-  // Re-issue a fresh token with the current tokenVersion
-  const user = req.user;
-  generateToken(res, user._id, user.tokenVersion);
+  const refreshTokenValue = req.cookies.jwt_refresh;
+  if (!refreshTokenValue) {
+    res.status(401);
+    throw new Error("Session expired — please sign in again");
+  }
 
-  apiResponse(res, 200, true, "Token refreshed");
+  try {
+    const decoded = jwt.verify(refreshTokenValue, process.env.JWT_SECRET);
+    if (decoded.type !== "refresh") {
+      res.status(401);
+      throw new Error("Invalid session token type");
+    }
+
+    const user = await authService.getUserById(decoded.userId);
+    if (decoded.tokenVersion !== user.tokenVersion) {
+      res.status(401);
+      throw new Error("Session revoked — please sign in again");
+    }
+
+    // Generate fresh Access + Refresh pair
+    generateToken(res, user._id, user.tokenVersion);
+
+    apiResponse(res, 200, true, "Session extended successfully");
+  } catch (err) {
+    // Clear cookies if invalid
+    clearAuthCookie(res);
+    res.status(401);
+    throw new Error("Invalid or expired session — please sign in again");
+  }
 });
 
 // ============================================
@@ -130,6 +171,46 @@ const logoutAllDevices = asyncHandler(async (req, res) => {
   apiResponse(res, 200, true, "Logged out from all devices");
 });
 
+// ============================================
+// @desc    Update user profile details
+// @route   PUT /api/v1/auth/profile
+// @access  Private
+// ============================================
+const updateProfile = asyncHandler(async (req, res) => {
+  const { name, bio, avatar } = req.body;
+  const updatedUser = await authService.updateUserProfile(req.user._id, {
+    name,
+    bio,
+    avatar,
+  });
+
+  apiResponse(res, 200, true, "Profile updated successfully", {
+    _id: updatedUser._id,
+    name: updatedUser.name,
+    email: updatedUser.email,
+    role: updatedUser.role,
+    avatar: updatedUser.avatar,
+    bio: updatedUser.bio,
+    createdAt: updatedUser.createdAt,
+  });
+});
+
+// ============================================
+// @desc    Change current user password
+// @route   PUT /api/v1/auth/change-password
+// @access  Private
+// ============================================
+const changePassword = asyncHandler(async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  await authService.changeUserPassword(req.user._id, currentPassword, newPassword);
+
+  // Note: Changing password rotates tokenVersion which invalidates existing session.
+  // We issue a fresh JWT cookie to keep the current session authenticated.
+  generateToken(res, req.user._id, req.user.tokenVersion + 1);
+
+  apiResponse(res, 200, true, "Password changed successfully on this device. Session updated.");
+});
+
 module.exports = {
   register,
   login,
@@ -138,4 +219,6 @@ module.exports = {
   guestLogin,
   refreshToken,
   logoutAllDevices,
+  updateProfile,
+  changePassword,
 };

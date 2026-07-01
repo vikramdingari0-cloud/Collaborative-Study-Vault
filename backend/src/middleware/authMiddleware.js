@@ -46,6 +46,12 @@ const protect = asyncHandler(async (req, res, next) => {
     // Verify token — jwt.verify() throws if token is invalid/expired
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
+    // Ensure the token is an access token, not a refresh token
+    if (decoded.type !== "access") {
+      res.status(401);
+      throw new Error("Not authorized — invalid token type");
+    }
+
     // Find user by decoded ID, exclude password
     req.user = await User.findById(decoded.userId).select("-password");
 

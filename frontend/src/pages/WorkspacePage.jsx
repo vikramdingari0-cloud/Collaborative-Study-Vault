@@ -34,6 +34,8 @@ const WorkspacePage = () => {
   const [workspace, setWorkspace] = useState(null);
   const [folders, setFolders] = useState([]);
   const [notes, setNotes] = useState([]);
+  const [notesPage, setNotesPage] = useState(1);
+  const [notesTotalPages, setNotesTotalPages] = useState(1);
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -90,6 +92,19 @@ const WorkspacePage = () => {
     setIsFlashcardFlipped(false);
   }, [openNoteId]);
 
+  // WCAG 2.1 - Keyboard trap prevention: Escape closes open modals
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key !== "Escape") return;
+      if (showFolderModal) { setShowFolderModal(false); setNewFolderName(""); return; }
+      if (showNoteModal)   { setShowNoteModal(false);   setNewNoteTitle(""); return; }
+      if (showFileModal)   { setShowFileModal(false);   setSelectedFile(null); return; }
+      if (showShortcuts)   { setShowShortcuts(false);   return; }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [showFolderModal, showNoteModal, showFileModal, showShortcuts]);
+
   // 1. Load All Workspace Data & Join Presence Socket
   const loadWorkspaceData = async () => {
     try {
@@ -108,10 +123,12 @@ const WorkspacePage = () => {
         setFolders(foldersRes.data.data);
       }
 
-      // Fetch notes
-      const notesRes = await axiosInstance.get(`/notes/workspace/${workspaceId}`);
+      // Fetch notes (page 1)
+      const notesRes = await axiosInstance.get(`/notes/workspace/${workspaceId}?page=1&limit=20`);
       if (notesRes.data?.success) {
         setNotes(notesRes.data.data);
+        setNotesPage(notesRes.data.pagination?.page || 1);
+        setNotesTotalPages(notesRes.data.pagination?.totalPages || 1);
       }
 
       // Fetch workspace files
@@ -254,9 +271,13 @@ const WorkspacePage = () => {
         setNewNoteTitle("");
         setNoteFolderId(null);
         setOpenNoteId(res.data.data._id); // Automatically open newly created note!
-        // Reload Notes list
-        const notesRes = await axiosInstance.get(`/notes/workspace/${workspaceId}`);
-        if (notesRes.data?.success) setNotes(notesRes.data.data);
+        // Reload Notes list (reset to page 1)
+        const notesRes = await axiosInstance.get(`/notes/workspace/${workspaceId}?page=1&limit=20`);
+        if (notesRes.data?.success) {
+          setNotes(notesRes.data.data);
+          setNotesPage(1);
+          setNotesTotalPages(notesRes.data.pagination?.totalPages || 1);
+        }
       }
     } catch (err) {
       toast.error("Failed to create note: " + (err.response?.data?.message || err.message));
@@ -272,9 +293,13 @@ const WorkspacePage = () => {
       const res = await axiosInstance.delete(`/notes/${noteId}`);
       if (res.data?.success) {
         if (openNoteId === noteId) setOpenNoteId(null);
-        // Reload Notes list
-        const notesRes = await axiosInstance.get(`/notes/workspace/${workspaceId}`);
-        if (notesRes.data?.success) setNotes(notesRes.data.data);
+        // Reload Notes list (reset to page 1)
+        const notesRes = await axiosInstance.get(`/notes/workspace/${workspaceId}?page=1&limit=20`);
+        if (notesRes.data?.success) {
+          setNotes(notesRes.data.data);
+          setNotesPage(1);
+          setNotesTotalPages(notesRes.data.pagination?.totalPages || 1);
+        }
       }
     } catch (err) {
       toast.error("Failed to delete note: " + (err.response?.data?.message || err.message));
@@ -496,6 +521,21 @@ const WorkspacePage = () => {
     }
   };
 
+  // Load next page of notes (infinite-scroll style)
+  const loadMoreNotes = async () => {
+    const nextPage = notesPage + 1;
+    try {
+      const res = await axiosInstance.get(`/notes/workspace/${workspaceId}?page=${nextPage}&limit=20`);
+      if (res.data?.success) {
+        setNotes((prev) => [...prev, ...res.data.data]);
+        setNotesPage(nextPage);
+        setNotesTotalPages(res.data.pagination?.totalPages || 1);
+      }
+    } catch (err) {
+      console.error("Failed to load more notes:", err);
+    }
+  };
+
   if (loading) {
     return (
       <div className="loading-container">
@@ -528,12 +568,12 @@ const WorkspacePage = () => {
   return (
     <div className="workspace-page-container h-screen d-flex flex-column overflow-hidden">
       {/* Top Navbar */}
-      <div className="workspace-nav p-3 px-4 border-bottom d-flex align-items-center justify-content-between flex-shrink-0 bg-panel-bg-solid">
+      <div className="workspace-nav p-3 px-4 border-bottom d-flex align-items-center justify-content-between flex-shrink-0 bg-panel-bg-solid" role="banner">
         <div className="d-flex align-items-center gap-3">
-          <Link to="/dashboard" className="btn btn-secondary py-1.5 px-3 text-xs">
+          <Link to="/dashboard" className="btn btn-secondary py-1.5 px-3 text-xs" aria-label="Back to dashboard">
             ← Dashboard
           </Link>
-          <span className="text-2xl">{workspace.icon || "📚"}</span>
+          <span className="text-2xl" aria-hidden="true">{workspace.icon || "📚"}</span>
           <div>
             <h2 className="m-0 text-white font-display text-base tracking-tight">{workspace.title}</h2>
             <p className="text-muted text-xxs m-0">
@@ -601,16 +641,19 @@ const WorkspacePage = () => {
       <div className="workspace-main-layout flex-grow-1 d-flex overflow-hidden">
         
         {/* Left Sidebar folder tree & members list */}
-        <div className="workspace-left-sidebar d-flex flex-column border-right flex-shrink-0 bg-panel-bg-solid overflow-y-auto p-3">
+        <nav className="workspace-left-sidebar d-flex flex-column border-right flex-shrink-0 bg-panel-bg-solid overflow-y-auto p-3" aria-label="Study library sidebar">
           
           {/* Search bar */}
           <div className="workspace-search-bar mb-3">
+            <label htmlFor="note-search" className="sr-only">Search study notes</label>
             <input
-              type="text"
+              id="note-search"
+              type="search"
               className="input-field w-100 text-xs py-1.5 px-3"
               placeholder="🔍 Search study notes..."
               value={searchQuery}
               onChange={(e) => handleSearch(e.target.value)}
+              aria-label="Search study notes"
             />
           </div>
 
@@ -620,6 +663,7 @@ const WorkspacePage = () => {
             <div className="d-flex gap-1.5">
               <button 
                 className="btn btn-secondary text-xxs p-1 px-2"
+                aria-label="Create new folder"
                 onClick={() => {
                   setFolderParentId(null);
                   setShowFolderModal(true);
@@ -629,6 +673,7 @@ const WorkspacePage = () => {
               </button>
               <button 
                 className="btn btn-secondary text-xxs p-1 px-2"
+                aria-label="Create new note"
                 onClick={() => {
                   setNoteFolderId(null);
                   setShowNoteModal(true);
@@ -638,6 +683,7 @@ const WorkspacePage = () => {
               </button>
               <button 
                 className="btn btn-secondary text-xxs p-1 px-2"
+                aria-label="Upload new file"
                 onClick={() => {
                   setFileFolderId(null);
                   setShowFileModal(true);
@@ -648,30 +694,36 @@ const WorkspacePage = () => {
             </div>
           </div>
 
-          <div className="folder-tree-feed flex-grow-1 overflow-y-auto mb-4">
+          <div className="folder-tree-feed flex-grow-1 overflow-y-auto mb-4" role="region" aria-label="Study library">
             {searchQuery.trim() ? (
-              <div className="search-results-block">
+              <div className="search-results-block" aria-live="polite" aria-atomic="true">
                 <h5 className="text-xxs uppercase tracking-wider text-muted font-bold mb-2">
                   {searching ? "Searching..." : `Search Results (${searchResults.length})`}
                 </h5>
                 {searchResults.length === 0 ? (
                   <span className="text-xxs text-muted italic pl-1">No matching notes found</span>
                 ) : (
-                  searchResults.map((note) => (
-                    <div 
-                      key={note._id} 
-                      className={`note-tree-node d-flex justify-content-between align-items-center p-1.5 rounded-6 hover-bg-border cursor-pointer text-xs mb-1 ${
-                        openNoteId === note._id ? "bg-primary-glow border-primary-glow text-white" : "text-muted"
-                      }`}
-                      onClick={() => {
-                        setOpenNoteId(note._id);
-                        setSearchQuery(""); // Clear search to restore tree
-                        setSearchResults([]);
-                      }}
-                    >
-                      <span className="truncate max-w-160">📄 {note.title}</span>
-                    </div>
-                  ))
+                  <ul role="listbox" aria-label="Search results" className="list-unstyled m-0">
+                    {searchResults.map((note) => (
+                      <li
+                        key={note._id}
+                        role="option"
+                        aria-selected={openNoteId === note._id}
+                        className={`note-tree-node d-flex justify-content-between align-items-center p-1.5 rounded-6 hover-bg-border cursor-pointer text-xs mb-1 ${
+                          openNoteId === note._id ? "bg-primary-glow border-primary-glow text-white" : "text-muted"
+                        }`}
+                        onClick={() => {
+                          setOpenNoteId(note._id);
+                          setSearchQuery("");
+                          setSearchResults([]);
+                        }}
+                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { setOpenNoteId(note._id); setSearchQuery(""); setSearchResults([]); } }}
+                        tabIndex={0}
+                      >
+                        <span className="truncate max-w-160">📄 {note.title}</span>
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </div>
             ) : (
@@ -734,14 +786,20 @@ const WorkspacePage = () => {
                               {folderNotes.map((note) => (
                                 <div 
                                   key={note._id} 
+                                  role="button"
+                                  tabIndex={0}
+                                  aria-label={`Open note: ${note.title}`}
+                                  aria-pressed={openNoteId === note._id}
                                   className={`note-tree-node d-flex justify-content-between align-items-center p-1.5 rounded-6 hover-bg-border cursor-pointer text-xs ${
                                     openNoteId === note._id ? "bg-primary-glow border-primary-glow text-white" : "text-muted"
                                   }`}
                                   onClick={() => setOpenNoteId(note._id)}
+                                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setOpenNoteId(note._id); }}
                                 >
                                   <span className="truncate max-w-130">📄 {note.title}</span>
                                   <button 
                                     className="btn-tree-icon text-danger opacity-hover"
+                                    aria-label={`Delete note ${note.title}`}
                                     onClick={(e) => handleDeleteNote(note._id, e)}
                                   >
                                     ✕
@@ -751,12 +809,17 @@ const WorkspacePage = () => {
                               {folderFiles.map((file) => (
                                 <div 
                                   key={file._id} 
+                                  role="button"
+                                  tabIndex={0}
+                                  aria-label={`Open file: ${file.name}`}
                                   className="note-tree-node d-flex justify-content-between align-items-center p-1.5 rounded-6 hover-bg-border cursor-pointer text-xs text-muted"
                                   onClick={() => window.open(file.url, "_blank")}
+                                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") window.open(file.url, "_blank"); }}
                                 >
                                   <span className="truncate max-w-130">📎 {file.name}</span>
                                   <button 
                                     className="btn-tree-icon text-danger opacity-hover"
+                                    aria-label={`Delete file ${file.name}`}
                                     onClick={(e) => handleDeleteFile(file._id, e)}
                                   >
                                     ✕
@@ -781,14 +844,20 @@ const WorkspacePage = () => {
                       {notes.filter((n) => !n.folder).map((note) => (
                         <div 
                           key={note._id} 
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`Open note: ${note.title}`}
+                          aria-pressed={openNoteId === note._id}
                           className={`note-tree-node d-flex justify-content-between align-items-center p-1.5 rounded-6 hover-bg-border cursor-pointer text-xs mb-1 ${
                             openNoteId === note._id ? "bg-primary-glow border-primary-glow text-white" : "text-muted"
                           }`}
                           onClick={() => setOpenNoteId(note._id)}
+                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setOpenNoteId(note._id); }}
                         >
                           <span className="truncate max-w-160">📄 {note.title}</span>
                           <button 
                             className="btn-tree-icon text-danger opacity-hover"
+                            aria-label={`Delete note ${note.title}`}
                             onClick={(e) => handleDeleteNote(note._id, e)}
                           >
                             ✕
@@ -798,12 +867,17 @@ const WorkspacePage = () => {
                       {files.filter((f) => !f.folder).map((file) => (
                         <div 
                           key={file._id} 
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`Open file: ${file.name}`}
                           className="note-tree-node d-flex justify-content-between align-items-center p-1.5 rounded-6 hover-bg-border cursor-pointer text-xs mb-1 text-muted"
                           onClick={() => window.open(file.url, "_blank")}
+                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") window.open(file.url, "_blank"); }}
                         >
                           <span className="truncate max-w-160">📎 {file.name}</span>
                           <button 
                             className="btn-tree-icon text-danger opacity-hover"
+                            aria-label={`Delete file ${file.name}`}
                             onClick={(e) => handleDeleteFile(file._id, e)}
                           >
                             ✕
@@ -813,6 +887,19 @@ const WorkspacePage = () => {
                     </>
                   )}
                 </div>
+
+                {/* Pagination: Load More */}
+                {notesPage < notesTotalPages && (
+                  <div className="text-center mt-3 mb-2">
+                    <button
+                      type="button"
+                      className="btn btn-secondary text-xxs py-1.5 px-4 w-100"
+                      onClick={loadMoreNotes}
+                    >
+                      Load More Notes ({notesPage}/{notesTotalPages})
+                    </button>
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -837,6 +924,7 @@ const WorkspacePage = () => {
                     <button 
                       className="btn-kick text-danger text-xxs font-semibold bg-transparent border-0 cursor-pointer"
                       onClick={() => handleRemoveMember(m.user?._id)}
+                      aria-label={`Remove member ${m.user?.name}`}
                     >
                       Kick
                     </button>
@@ -885,14 +973,16 @@ const WorkspacePage = () => {
 
           </div>
 
-        </div>
+        </nav>
 
         {/* Center Panel (markdown editor, whiteboard or Welcome screen) */}
         <div className="workspace-center-panel flex-grow-1 overflow-hidden d-flex flex-column p-3 position-relative">
           {!openNoteId && (
-            <div className="center-panel-tabs glass-card d-flex p-1 gap-1 mb-3.5 mx-auto flex-shrink-0" style={{ maxWidth: "560px", width: "100%" }}>
+            <div className="center-panel-tabs glass-card d-flex p-1 gap-1 mb-3.5 mx-auto flex-shrink-0" style={{ maxWidth: "560px", width: "100%" }} role="tablist" aria-label="Workspace views">
               <button
                 type="button"
+                role="tab"
+                aria-selected={centerTab === "dashboard"}
                 className={`tab-switch-btn flex-grow-1 text-xs py-1.5 rounded-8 ${centerTab === "dashboard" ? "active bg-primary text-white" : "text-muted"}`}
                 onClick={() => setCenterTab("dashboard")}
               >
@@ -900,6 +990,8 @@ const WorkspacePage = () => {
               </button>
               <button
                 type="button"
+                role="tab"
+                aria-selected={centerTab === "whiteboard"}
                 className={`tab-switch-btn flex-grow-1 text-xs py-1.5 rounded-8 ${centerTab === "whiteboard" ? "active bg-primary text-white" : "text-muted"}`}
                 onClick={() => setCenterTab("whiteboard")}
               >
@@ -907,6 +999,8 @@ const WorkspacePage = () => {
               </button>
               <button
                 type="button"
+                role="tab"
+                aria-selected={centerTab === "forum"}
                 className={`tab-switch-btn flex-grow-1 text-xs py-1.5 rounded-8 ${centerTab === "forum" ? "active bg-primary text-white" : "text-muted"}`}
                 onClick={() => setCenterTab("forum")}
               >
@@ -914,6 +1008,8 @@ const WorkspacePage = () => {
               </button>
               <button
                 type="button"
+                role="tab"
+                aria-selected={centerTab === "pastpapers"}
                 className={`tab-switch-btn flex-grow-1 text-xs py-1.5 rounded-8 ${centerTab === "pastpapers" ? "active bg-primary text-white" : "text-muted"}`}
                 onClick={() => setCenterTab("pastpapers")}
               >
@@ -1221,11 +1317,11 @@ const WorkspacePage = () => {
 
       {/* Create Folder Modal */}
       {showFolderModal && (
-        <div className="modal-backdrop">
-          <div className="modal-container glass-card p-4 animate-fade-in w-100 max-w-400">
+        <div className="modal-backdrop" role="presentation">
+          <div className="modal-container glass-card p-4 animate-fade-in w-100 max-w-400" role="dialog" aria-modal="true" aria-labelledby="folder-modal-title">
             <div className="d-flex justify-content-between align-items-center mb-4">
-              <h3 className="m-0 font-display">New Study Folder</h3>
-              <button className="btn btn-secondary py-1 px-2.5 text-xs" onClick={() => setShowFolderModal(false)}>
+              <h3 id="folder-modal-title" className="m-0 font-display">New Study Folder</h3>
+              <button className="btn btn-secondary py-1 px-2.5 text-xs" onClick={() => setShowFolderModal(false)} aria-label="Close folder dialog">
                 ✕
               </button>
             </div>
@@ -1256,11 +1352,11 @@ const WorkspacePage = () => {
 
       {/* Create Note Modal */}
       {showNoteModal && (
-        <div className="modal-backdrop">
-          <div className="modal-container glass-card p-4 animate-fade-in w-100 max-w-400">
+        <div className="modal-backdrop" role="presentation">
+          <div className="modal-container glass-card p-4 animate-fade-in w-100 max-w-400" role="dialog" aria-modal="true" aria-labelledby="note-modal-title">
             <div className="d-flex justify-content-between align-items-center mb-4">
-              <h3 className="m-0 font-display">New Study Note</h3>
-              <button className="btn btn-secondary py-1 px-2.5 text-xs" onClick={() => setShowNoteModal(false)}>
+              <h3 id="note-modal-title" className="m-0 font-display">New Study Note</h3>
+              <button className="btn btn-secondary py-1 px-2.5 text-xs" onClick={() => setShowNoteModal(false)} aria-label="Close note dialog">
                 ✕
               </button>
             </div>
@@ -1291,10 +1387,10 @@ const WorkspacePage = () => {
 
       {/* Upload File Modal */}
       {showFileModal && (
-        <div className="modal-backdrop">
-          <div className="modal-container glass-card p-4 animate-fade-in w-100 max-w-400">
+        <div className="modal-backdrop" role="presentation">
+          <div className="modal-container glass-card p-4 animate-fade-in w-100 max-w-400" role="dialog" aria-modal="true" aria-labelledby="file-modal-title">
             <div className="d-flex justify-content-between align-items-center mb-4">
-              <h3 className="m-0 font-display">Upload Resource File</h3>
+              <h3 id="file-modal-title" className="m-0 font-display">Upload Resource File</h3>
               <button 
                 type="button"
                 className="btn btn-secondary py-1 px-2.5 text-xs" 

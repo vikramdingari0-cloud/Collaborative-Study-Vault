@@ -32,12 +32,16 @@ const {
   guestLogin,
   refreshToken,
   logoutAllDevices,
+  updateProfile,
+  changePassword,
 } = require("../controllers/authController");
 
 // Import validators
 const {
   registerRules,
   loginRules,
+  updateProfileRules,
+  changePasswordRules,
   validate,
 } = require("../validators/authValidator");
 
@@ -58,16 +62,7 @@ router.post("/register", registerRules, validate, register);
 // Body: { email, password }
 router.post("/login", loginRules, validate, login);
 
-// Guest demo login — development only (disabled in production)
-const blockGuestInProduction = (req, res, next) => {
-  if (process.env.NODE_ENV === "production") {
-    return res.status(403).json({
-      success: false,
-      message: "Guest login is disabled in production. Please register or sign in.",
-    });
-  }
-  next();
-};
+// Guest demo login (1-click access for recruiters/demo)
 router.post("/guest", guestLogin);
 // ============================================
 // PRIVATE ROUTES (JWT required)
@@ -79,7 +74,7 @@ router.post("/logout", protect, logout);
 
 // Refresh JWT token (extends session)
 // POST /api/v1/auth/refresh
-router.post("/refresh", protect, refreshToken);
+router.post("/refresh", refreshToken);
 
 // Force logout from all devices (invalidates all existing tokens)
 // POST /api/v1/auth/logout-all
@@ -88,5 +83,13 @@ router.post("/logout-all", protect, logoutAllDevices);
 // Get current user profile
 // GET /api/v1/auth/profile
 router.get("/profile", protect, getProfile);
+
+// Update current user profile
+// PUT /api/v1/auth/profile
+router.put("/profile", protect, updateProfileRules, validate, updateProfile);
+
+// Change current user password
+// PUT /api/v1/auth/change-password
+router.put("/change-password", protect, changePasswordRules, validate, changePassword);
 
 module.exports = router;

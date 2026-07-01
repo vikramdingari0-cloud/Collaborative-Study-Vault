@@ -383,7 +383,7 @@ const MarkdownEditor = ({ noteId, currentUser, onNoteSaved, onOpenHistory }) => 
 
       {/* Editor warning lockout banner */}
       {isLockedByOther && (
-        <div className="lockout-warning-banner p-2.5 bg-danger-glow border-bottom text-center text-xs text-white d-flex align-items-center justify-content-center gap-2">
+        <div className="lockout-warning-banner p-2.5 border-bottom text-center text-xs text-danger d-flex align-items-center justify-content-center gap-2">
           <span>🔒</span>
           <span>
             <strong>{lockedBy.name}</strong> is currently co-authoring. Changes are synchronized live, but writing is locked out to avoid overrides.

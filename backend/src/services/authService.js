@@ -56,32 +56,68 @@ const createUser = async ({ name, email, password }) => {
 };
 
 /**
- * Authenticate user with email and password
+ * Authenticate user with email and password.
+ * Includes brute-force protection: 5 failed attempts → 15-minute lockout.
  * @param {string} email - User's email
  * @param {string} password - User's password (plain text)
  * @returns {Object} Authenticated user data
  */
-const authenticateUser = async (email, password) => {
-  // Find user AND include password field (which is excluded by default)
-  // We need the password to compare with the entered one
-  const user = await User.findOne({ email }).select("+password");
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = (Number(process.env.LOGIN_LOCKOUT_MINUTES) || 15) * 60 * 1000;
 
-  if (!user) {
-    const error = new Error("Invalid email or password");
-    error.statusCode = 401;
-    throw error;
+const authenticateUser = async (email, password) => {
+  // Include password AND brute-force tracking fields
+  const user = await User.findOne({ email }).select("+password +loginAttempts +lockUntil");
+
+  // Generic message — never reveal whether email exists
+  const invalidError = Object.assign(new Error("Invalid email or password"), { statusCode: 401 });
+
+  if (!user) throw invalidError;
+
+  // Block system accounts from password-based login
+  const SYSTEM_EMAILS = new Set(["ai-tutor@studyvault.com"]);
+  if (SYSTEM_EMAILS.has(user.email?.toLowerCase())) throw invalidError;
+
+  // Block guest accounts from password login (they log in via /auth/guest only)
+  if (user.isGuest) throw invalidError;
+
+  // Check if account is currently locked
+  const isLocked = user.lockUntil && user.lockUntil > new Date();
+  if (isLocked) {
+    const minutesLeft = Math.ceil((user.lockUntil - Date.now()) / 60_000);
+    const lockError = new Error(
+      `Account temporarily locked due to too many failed login attempts. Try again in ${minutesLeft} minute${minutesLeft === 1 ? "" : "s"}.`
+    );
+    lockError.statusCode = 429;
+    throw lockError;
   }
 
   // Compare entered password with stored hash
   const isMatch = await user.matchPassword(password);
 
   if (!isMatch) {
-    const error = new Error("Invalid email or password");
-    error.statusCode = 401;
-    throw error;
+    // Increment failed attempt counter
+    const newAttempts = (user.loginAttempts || 0) + 1;
+    const update = { loginAttempts: newAttempts };
+
+    if (newAttempts >= MAX_LOGIN_ATTEMPTS) {
+      update.lockUntil = new Date(Date.now() + LOCKOUT_DURATION_MS);
+      update.loginAttempts = 0; // Reset counter — lock is the signal now
+    }
+
+    await User.findByIdAndUpdate(user._id, { $set: update });
+    throw invalidError;
   }
 
-  // Return user data WITHOUT password
+  // Successful login — reset brute force counters
+  if (user.loginAttempts > 0 || user.lockUntil) {
+    await User.findByIdAndUpdate(user._id, {
+      $set: { loginAttempts: 0 },
+      $unset: { lockUntil: "" },
+    });
+  }
+
+  // Return user data WITHOUT sensitive fields
   return {
     _id: user._id,
     name: user.name,
@@ -147,10 +183,82 @@ const incrementTokenVersion = async (userId) => {
   await User.findByIdAndUpdate(userId, { $inc: { tokenVersion: 1 } });
 };
 
+/**
+ * Update user profile details
+ * @param {string} userId
+ * @param {Object} fields - { name, bio, avatar }
+ * @returns {Object} Updated user document
+ */
+const updateUserProfile = async (userId, { name, bio, avatar }) => {
+  const user = await User.findById(userId);
+  if (!user) {
+    const error = new Error("User not found");
+    error.statusCode = 404;
+    throw error;
+  }
+  if (user.isGuest) {
+    const error = new Error("Guest profile details cannot be modified");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  if (name) {
+    user.name = name.trim();
+  }
+  if (bio !== undefined) {
+    user.bio = bio.trim().slice(0, 200);
+  }
+  if (avatar !== undefined) {
+    user.avatar = avatar;
+  }
+
+  await user.save();
+  return user;
+};
+
+/**
+ * Change user password
+ * @param {string} userId
+ * @param {string} currentPassword
+ * @param {string} newPassword
+ */
+const changeUserPassword = async (userId, currentPassword, newPassword) => {
+  const user = await User.findById(userId).select("+password");
+  if (!user) {
+    const error = new Error("User not found");
+    error.statusCode = 404;
+    throw error;
+  }
+  if (user.isGuest) {
+    const error = new Error("Guest users cannot change their password");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  const isMatch = await user.matchPassword(currentPassword);
+  if (!isMatch) {
+    const error = new Error("Current password is incorrect");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (!newPassword || newPassword.length < 8) {
+    const error = new Error("New password must be at least 8 characters long");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  user.password = newPassword;
+  user.tokenVersion += 1; // Force log out other active sessions
+  await user.save();
+};
+
 module.exports = {
   createUser,
   authenticateUser,
   getUserById,
   createGuestUser,
   incrementTokenVersion,
+  updateUserProfile,
+  changeUserPassword,
 };

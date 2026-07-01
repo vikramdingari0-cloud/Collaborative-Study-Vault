@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axiosInstance from "../../api/axiosInstance";
 import { useToast } from "../../context/ToastContext";
+import TextToSpeechButton from "../common/TextToSpeechButton";
 
 /**
  * QuizModal - Beautiful Glassmorphic Active Recall Quiz Overlay
@@ -266,6 +267,11 @@ const QuizModal = ({ quizId, onClose, onAttemptSaved }) => {
             <p className="explanation-text text-sm text-muted mt-2">
               {currentQuestion.explanation || "No explanation provided."}
             </p>
+            {currentQuestion.explanation && (
+              <div className="mt-2 d-flex justify-content-end">
+                <TextToSpeechButton text={currentQuestion.explanation} className="btn-secondary px-2 py-0.5 text-xs" />
+              </div>
+            )}
           </div>
         )}
 

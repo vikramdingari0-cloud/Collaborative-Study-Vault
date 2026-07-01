@@ -92,8 +92,21 @@ const generateFlashcards = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Analyze whiteboard drawing via AI Vision
+// @route   POST /api/v1/ai/analyze-image
+// @access  Private
+const analyzeWhiteboard = asyncHandler(async (req, res) => {
+  const { imageBase64 } = req.body;
+  if (!imageBase64) {
+    return apiResponse(res, 400, false, "imageBase64 is required");
+  }
+  const explanation = await aiService.analyzeImage(imageBase64);
+  apiResponse(res, 200, true, "Image analyzed", { explanation });
+});
+
 module.exports = {
   summarizeNote,
   explainConcept,
   generateFlashcards,
+  analyzeWhiteboard,
 };

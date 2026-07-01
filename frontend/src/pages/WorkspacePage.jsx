@@ -9,12 +9,13 @@ import MarkdownEditor from "../components/editor/MarkdownEditor";
 import VersionHistory from "../components/editor/VersionHistory";
 import ChatWindow from "../components/chat/ChatWindow";
 import QuizModal from "../components/workspace/QuizModal";
-import Whiteboard from "../components/workspace/Whiteboard";
+import WhiteboardFullScreen from "../components/workspace/WhiteboardFullScreen";
 import ForumBoard from "../components/workspace/ForumBoard";
 import PastPapersBoard from "../components/workspace/PastPapersBoard";
 import WorkspaceOnboarding from "../components/onboarding/WorkspaceOnboarding";
 import KeyboardShortcutsModal from "../components/ui/KeyboardShortcutsModal";
 import { useToast } from "../context/ToastContext";
+import TextToSpeechButton from "../components/common/TextToSpeechButton";
 
 /**
  * WorkspacePage - The full-featured, collaborative, glassmorphic Study Room.
@@ -1025,11 +1026,6 @@ const WorkspacePage = () => {
               onNoteSaved={handleNoteSaved}
               onOpenHistory={() => setShowHistory(true)}
             />
-          ) : centerTab === "whiteboard" ? (
-            <Whiteboard
-              workspaceId={workspaceId}
-              currentUser={currentUser}
-            />
           ) : centerTab === "forum" ? (
             <ForumBoard
               workspaceId={workspaceId}
@@ -1134,7 +1130,12 @@ const WorkspacePage = () => {
               {/* Note summary section */}
               {openNoteId ? (
                 <div className="note-summary-card glass-card p-3">
-                  <h4 className="font-display text-xs text-primary uppercase tracking-wider mb-2">⚡ Notes AI summary</h4>
+                  <div className="d-flex align-items-center justify-content-between mb-2">
+                    <h4 className="font-display text-xs text-primary uppercase tracking-wider m-0">⚡ Notes AI summary</h4>
+                    {openNoteObj?.aiSummary && (
+                      <TextToSpeechButton text={openNoteObj.aiSummary} className="btn-secondary px-2 py-0.5" />
+                    )}
+                  </div>
                   {openNoteObj?.aiSummary ? (
                     <div className="ai-summary-viewport text-xs text-muted max-h-180 overflow-y-auto mb-3 whitespace-pre-wrap">
                       {openNoteObj.aiSummary}
@@ -1189,7 +1190,7 @@ const WorkspacePage = () => {
                           {/* Front Side */}
                           <div className="flashcard-face flashcard-front d-flex flex-column align-items-center justify-content-center text-center p-3">
                             <span className="text-xxs uppercase tracking-wider text-primary font-bold mb-2">FRONT</span>
-                            <p className="text-xs text-white font-medium m-0">
+                            <p className="text-xs text-slate-800 font-medium m-0">
                               {openNoteObj.aiFlashcards[currentFlashcardIndex]?.front}
                             </p>
                             <span className="text-xxxs text-muted mt-3">Click to Flip</span>
@@ -1197,10 +1198,15 @@ const WorkspacePage = () => {
                           {/* Back Side */}
                           <div className="flashcard-face flashcard-back d-flex flex-column align-items-center justify-content-center text-center p-3">
                             <span className="text-xxs uppercase tracking-wider text-success font-bold mb-2">BACK</span>
-                            <p className="text-xs text-muted font-medium m-0">
+                            <p className="text-xs text-slate-800 font-medium m-0">
                               {openNoteObj.aiFlashcards[currentFlashcardIndex]?.back}
                             </p>
-                            <span className="text-xxxs text-muted mt-3">Click to Flip</span>
+                            <div className="mt-3" onClick={(e) => e.stopPropagation()}>
+                              <TextToSpeechButton 
+                                text={openNoteObj.aiFlashcards[currentFlashcardIndex]?.back} 
+                                className="btn-secondary px-2 py-1 text-xs" 
+                              />
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1443,6 +1449,25 @@ const WorkspacePage = () => {
             if (quizzesRes.data?.success) setQuizzes(quizzesRes.data.data);
           }}
         />
+      )}
+
+      {/* Full Screen Whiteboard Overlay */}
+      {centerTab === "whiteboard" && (
+        <div className="whiteboard-fullscreen-overlay position-absolute top-0 start-0 w-100 h-100 z-index-30 bg-panel-bg-solid d-flex flex-column">
+          <div className="whiteboard-header p-3 border-bottom d-flex align-items-center justify-content-between">
+            <h2 className="m-0 font-display text-primary">🎨 Full Screen Whiteboard</h2>
+            <button 
+              className="btn btn-secondary px-3 py-1.5 text-sm font-bold"
+              onClick={() => setCenterTab("dashboard")}
+            >✕ Close Whiteboard</button>
+          </div>
+          <div className="flex-grow-1 position-relative">
+            <Whiteboard
+              workspaceId={workspaceId}
+              currentUser={currentUser}
+            />
+          </div>
+        </div>
       )}
 
       <WorkspaceOnboarding workspaceId={workspaceId} />

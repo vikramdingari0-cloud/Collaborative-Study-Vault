@@ -87,8 +87,75 @@ const callGemini = async (prompt, { generationConfig, maxRetries = 2, label = "r
   return { rateLimited: true, text: null };
 };
 
+/**
+ * Call Gemini Vision with an inline base64 image
+ * @param {string} prompt - Text prompt
+ * @param {string} base64Image - Base64 string WITHOUT the data URI prefix
+ * @param {string} mimeType - e.g. "image/png"
+ */
+const callGeminiVision = async (prompt, base64Image, mimeType = "image/png", { maxRetries = 1, label = "vision" } = {}) => {
+  if (!isConfigured() || forceLocalAi()) {
+    return { rateLimited: true, text: null };
+  }
+  if (isQuotaBlocked()) {
+    return { rateLimited: true, text: null };
+  }
+
+  const url = `${GEMINI_BASE}/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+  const body = {
+    contents: [
+      {
+        parts: [
+          { text: prompt },
+          { inlineData: { mimeType, data: base64Image } }
+        ]
+      }
+    ]
+  };
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (response.status === 429 || response.status === 503) {
+        if (attempt < maxRetries) {
+          await sleep(1500);
+          continue;
+        }
+        markQuotaBlocked();
+        return { rateLimited: true, text: null };
+      }
+
+      if (!response.ok) {
+        const errBody = await response.text().catch(() => "");
+        throw new Error(`Gemini Vision API ${response.status}${errBody ? `: ${errBody.slice(0, 120)}` : ""}`);
+      }
+
+      const data = await response.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (text?.trim()) {
+        return { rateLimited: false, text: text.trim() };
+      }
+      throw new Error("Gemini returned an empty vision response");
+    } catch (err) {
+      if (attempt < maxRetries) {
+        await sleep(1000);
+        continue;
+      }
+      throw err;
+    }
+  }
+  markQuotaBlocked();
+  return { rateLimited: true, text: null };
+};
+
 module.exports = {
   callGemini,
+  callGeminiVision,
   isConfigured,
   forceLocalAi,
   isQuotaBlocked,

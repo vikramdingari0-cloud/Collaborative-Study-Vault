@@ -49,8 +49,9 @@ const setCsrfCookie = (res, token) => {
 const csrfProtection = (req, res, next) => {
   const isProd = process.env.NODE_ENV === "production";
   
-  // Skip CSRF validation for login and register (anonymous endpoints)
-  if (req.path === '/api/v1/auth/login' || req.path === '/api/v1/auth/register') {
+  // Skip CSRF validation for login, register, and refresh (anonymous/session endpoints)
+  const authPaths = ['/api/v1/auth/login', '/api/v1/auth/register', '/api/v1/auth/refresh'];
+  if (authPaths.some(p => req.path === p || req.path === p + '/')) {
     return next();
   }
 

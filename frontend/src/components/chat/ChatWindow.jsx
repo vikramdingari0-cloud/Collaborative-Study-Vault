@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { socket } from "../../sockets/socket";
 import axiosInstance from "../../api/axiosInstance";
+import TextToSpeechButton from "../common/TextToSpeechButton";
 
 /** Strip markdown for plain chat display */
 const toPlainChat = (text) => {
@@ -168,6 +169,11 @@ const ChatWindow = ({ workspaceId, currentUser, openNoteId = null }) => {
                       <p className="m-0" style={{ lineHeight: 1.4 }}>
                         {body}
                       </p>
+                      {isAI && (
+                        <div className="mt-1 d-flex justify-content-end">
+                          <TextToSpeechButton text={body} className="btn-secondary px-2 py-0.5" />
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

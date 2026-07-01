@@ -9,7 +9,7 @@
 const express = require("express");
 const router = express.Router();
 
-const { summarizeNote, explainConcept, generateFlashcards } = require("../controllers/aiController");
+const { summarizeNote, explainConcept, generateFlashcards, analyzeWhiteboard } = require("../controllers/aiController");
 const { protect } = require("../middleware/authMiddleware");
 const Note = require("../models/Note");
 const {
@@ -40,6 +40,11 @@ router.post(
   requireResourceWorkspaceMember(Note, "noteId", "noteId"),
   requireEditorFromContext,
   generateFlashcards
+);
+
+router.post(
+  "/analyze-image",
+  analyzeWhiteboard
 );
 
 module.exports = router;

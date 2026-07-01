@@ -15,7 +15,7 @@ const {
 } = require("../ai/tutorRouter");
 const { quizResponseSchema, flashcardResponseSchema } = require("../ai/jsonSchemas");
 const logger = require("../utils/logger");
-const { callGemini, isConfigured, forceLocalAi } = require("../utils/geminiClient");
+const { callGemini, callGeminiVision, isConfigured, forceLocalAi } = require("../utils/geminiClient");
 
 /**
  * Clean and normalize note content to prevent API formatting issues
@@ -189,6 +189,38 @@ const generateFlashcards = async (title, content) => {
 
   // Fallback to programmatic Mock Flashcard Engine
   return generateMockFlashcards(title, cleanContent);
+};
+
+/**
+ * Analyze an image (e.g. whiteboard drawing)
+ * @param {string} base64Data - Base64 image data
+ */
+const analyzeImage = async (base64Data) => {
+  const prompt = "Analyze this whiteboard drawing or notes image. Explain what it is, point out key concepts, and provide a clear, educational summary. Keep it concise but insightful.";
+  
+  // Extract base64 without the data URI prefix (e.g. 'data:image/png;base64,')
+  let cleanBase64 = base64Data;
+  let mimeType = "image/png";
+  if (base64Data.includes(",")) {
+    const parts = base64Data.split(",");
+    cleanBase64 = parts[1];
+    const match = parts[0].match(/:(.*?);/);
+    if (match) {
+      mimeType = match[1];
+    }
+  }
+
+  if (isConfigured()) {
+    try {
+      logger.info(`🤖 Requesting Gemini Vision Analysis for image`);
+      const result = await callGeminiVision(prompt, cleanBase64, mimeType);
+      if (result?.text) return result.text;
+    } catch (err) {
+      logger.warn(`Gemini Vision unavailable, using mock: ${err.message}`);
+    }
+  }
+
+  return "This looks like a highly educational diagram! (Mock AI response due to quota limits or lack of API key. Add a Gemini API key to see true visual analysis of your drawings).";
 };
 
 // ============================================
@@ -407,4 +439,5 @@ module.exports = {
   generateQuizFromNote,
   askTutor,
   generateFlashcards,
+  analyzeImage,
 };

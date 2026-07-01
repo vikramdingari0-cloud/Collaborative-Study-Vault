@@ -1,6 +1,8 @@
 import React, { useRef, useState, useEffect } from "react";
 import { socket } from "../../sockets/socket";
 import { useToast } from "../../context/ToastContext";
+import axiosInstance from "../../api/axiosInstance";
+import TextToSpeechButton from "../common/TextToSpeechButton";
 
 /**
  * Whiteboard - Highly Upgraded Real-time Collaborative Shared Drawing Canvas.
@@ -23,6 +25,8 @@ const Whiteboard = ({ workspaceId, currentUser }) => {
   const [lineWidth, setLineWidth] = useState(5);
   const [gridType, setGridType] = useState("dots"); // "none" | "dots" | "grid"
   const [isDrawing, setIsDrawing] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState("");
 
   // Keep a local cache of all drawing strokes to support shape previews & redraws
   const strokesHistoryRef = useRef([]);
@@ -314,6 +318,46 @@ const Whiteboard = ({ workspaceId, currentUser }) => {
     toast.success("Whiteboard exported as PNG");
   };
 
+  const handleAnalyzeDrawing = async () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    // We must redraw onto an export canvas with a solid white background so the AI can see it clearly
+    const exportCanvas = document.createElement("canvas");
+    exportCanvas.width = canvas.width;
+    exportCanvas.height = canvas.height;
+    const exportCtx = exportCanvas.getContext("2d");
+    if (!exportCtx) return;
+
+    // Solid white background for AI vision
+    exportCtx.fillStyle = "#ffffff";
+    exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    exportCtx.scale(dpr, dpr);
+    strokesHistoryRef.current.forEach((stroke) => {
+      // Force strokes to be visible on white bg (invert colors if necessary, though AI can figure it out)
+      drawStrokeObject(exportCtx, stroke, rect.width, rect.height);
+    });
+
+    const dataUrl = exportCanvas.toDataURL("image/png");
+
+    setIsAnalyzing(true);
+    setAiAnalysis("");
+    try {
+      const res = await axiosInstance.post("/ai/analyze-image", { imageBase64: dataUrl });
+      if (res.data?.success) {
+        setAiAnalysis(res.data.data.explanation);
+        toast.success("AI Analysis Complete");
+      }
+    } catch (err) {
+      toast.error("AI Analysis failed: " + (err.response?.data?.message || err.message));
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -535,6 +579,15 @@ const Whiteboard = ({ workspaceId, currentUser }) => {
           </button>
           <button
             type="button"
+            className="btn btn-primary py-1.5 px-3 text-xxs font-bold"
+            title="Analyze drawing with AI"
+            onClick={handleAnalyzeDrawing}
+            disabled={isAnalyzing}
+          >
+            {isAnalyzing ? "🤖 Thinking..." : "✨ Analyze (AI)"}
+          </button>
+          <button
+            type="button"
             className="btn btn-danger py-1.5 px-3 text-xxs font-bold"
             title="Clear all strokes"
             onClick={handleClearWhiteboard}
@@ -562,6 +615,27 @@ const Whiteboard = ({ workspaceId, currentUser }) => {
         onTouchMove={handleDrawingMove}
         onTouchEnd={handleStopDrawing}
       />
+
+      {/* AI Analysis Modal Overlay */}
+      {aiAnalysis && (
+        <div className="ai-analysis-modal-overlay position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center z-index-20" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
+          <div className="glass-card bg-white p-4 max-w-600 w-100 position-relative shadow-lg rounded-12" style={{ maxHeight: "80vh", overflowY: "auto" }}>
+            <button 
+              className="btn btn-close position-absolute top-0 end-0 m-3"
+              onClick={() => setAiAnalysis("")}
+            >✕</button>
+            <h3 className="text-lg font-display text-primary mb-3 d-flex align-items-center gap-2">
+              ✨ AI Analysis
+            </h3>
+            <p className="text-sm text-slate-700" style={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
+              {aiAnalysis}
+            </p>
+            <div className="d-flex justify-content-end mt-4 border-top pt-3">
+              <TextToSpeechButton text={aiAnalysis} className="btn btn-secondary px-3 py-1.5 text-xs font-bold" />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

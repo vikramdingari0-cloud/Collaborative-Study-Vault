@@ -38,7 +38,7 @@ const setCsrfCookie = (res, token) => {
   res.cookie("XSRF-TOKEN", token, {
     httpOnly: false,
     secure: isProd,
-    sameSite: isProd ? "lax" : "lax",
+    sameSite: isProd ? "none" : "lax",
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
   });
 };
@@ -48,6 +48,12 @@ const setCsrfCookie = (res, token) => {
  */
 const csrfProtection = (req, res, next) => {
   const isProd = process.env.NODE_ENV === "production";
+  
+  // Skip CSRF validation for login and register (anonymous endpoints)
+  if (req.path === '/api/v1/auth/login' || req.path === '/api/v1/auth/register') {
+    return next();
+  }
+
   const cookieToken = req.cookies["XSRF-TOKEN"];
 
   // 1. If it's a safe method, ensure a CSRF token exists
@@ -55,6 +61,9 @@ const csrfProtection = (req, res, next) => {
     if (!cookieToken) {
       const newToken = generateCsrfToken();
       setCsrfCookie(res, newToken);
+      req.csrfTokenStr = newToken;
+    } else {
+      req.csrfTokenStr = cookieToken;
     }
     return next();
   }

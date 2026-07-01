@@ -12,6 +12,36 @@ const axiosInstance = axios.create({
   },
 });
 
+let csrfTokenPromise = null;
+
+// Request interceptor to attach CSRF token to state-changing methods
+axiosInstance.interceptors.request.use(
+  async (config) => {
+    const isSafeMethod = ["get", "head", "options"].includes(config.method?.toLowerCase());
+    const isAuthRoute = config.url?.includes("/auth/login") || config.url?.includes("/auth/register");
+
+    if (!isSafeMethod && !isAuthRoute) {
+      if (!axiosInstance.defaults.headers.common["X-XSRF-TOKEN"]) {
+        if (!csrfTokenPromise) {
+          csrfTokenPromise = axios
+            .get(`${axiosInstance.defaults.baseURL}/auth/csrf-token`, {
+              withCredentials: true,
+            })
+            .then((res) => res.data.csrfToken)
+            .catch(() => null); // Fail silently on CSRF fetch errors
+        }
+        const token = await csrfTokenPromise;
+        if (token) {
+          axiosInstance.defaults.headers.common["X-XSRF-TOKEN"] = token;
+          config.headers["X-XSRF-TOKEN"] = token;
+        }
+      }
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
 // Response interceptor to catch 401s and automatically refresh the session
 axiosInstance.interceptors.response.use(
   (response) => response,

@@ -1,36 +1,36 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap');
 
 :root {
-  /* HSL Color System - Clean Light Aesthetics */
-  --bg: #F8FAFC;              /* Background */
-  --bg-dots: rgba(37, 99, 235, 0.05); /* Primary dots */
-  --panel-bg: #FFFFFF;        /* Surface */
-  --panel-bg-solid: #FFFFFF;
-  --border: #E2E8F0;          /* Border */
-  --border-hover: #CBD5E1;
-  --text: #0F172A;            /* Main Text */
-  --text-muted: #64748B;
-  --text-dim: #94A3B8;
+  /* HSL Color System - Premium Dark Glassmorphism */
+  --bg: #030014;              /* Deep Space */
+  --bg-dots: rgba(255, 255, 255, 0.03); 
+  --panel-bg: rgba(255, 255, 255, 0.03); /* Glass */
+  --panel-bg-solid: #0B0A1A;
+  --border: rgba(255, 255, 255, 0.08);          
+  --border-hover: rgba(255, 255, 255, 0.2);
+  --text: #F8FAFC;            
+  --text-muted: #94A3B8;
+  --text-dim: #64748B;
   
-  --primary: #2563EB;         /* Primary */
-  --primary-glow: rgba(37, 99, 235, 0.15);
-  --primary-hover: #1D4ED8;
+  --primary: #8B5CF6;         /* Vibrant Purple */
+  --primary-glow: rgba(139, 92, 246, 0.25);
+  --primary-hover: #A78BFA;
   
-  --success: #10B981;         /* Secondary */
+  --success: #10B981;         /* Emerald */
   --success-glow: rgba(16, 185, 129, 0.15);
   
-  --ai-accent: #8B5CF6;       /* AI Accent */
-  --danger: #ef4444;          
-  --danger-glow: rgba(239, 68, 68, 0.15);
-  --warning: #F59E0B;         /* Highlight */
+  --ai-accent: #38BDF8;       /* Sky Blue */
+  --danger: #F43F5E;          /* Rose */
+  --danger-glow: rgba(244, 63, 94, 0.15);
+  --warning: #F59E0B;         /* Amber */
 
   --font-display: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --shadow-glow: 0 0 24px -2px rgba(37, 99, 235, 0.15);
-  --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --shadow-sm: 0 4px 12px 0 rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+  --shadow-glow: 0 0 24px -2px rgba(139, 92, 246, 0.2);
+  --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 /* Global Reset & Base Styling */
@@ -43,10 +43,12 @@
 body {
   background-color: var(--bg);
   background-image: 
-    radial-gradient(var(--bg-dots) 1.5px, transparent 1.5px),
-    radial-gradient(rgba(37, 99, 235, 0.02) 2px, transparent 2px);
-  background-size: 24px 24px, 120px 120px;
-  background-position: 0 0, 12px 12px;
+    radial-gradient(circle at 15% 50%, rgba(139, 92, 246, 0.15), transparent 25%),
+    radial-gradient(circle at 85% 30%, rgba(56, 189, 248, 0.15), transparent 25%),
+    radial-gradient(var(--bg-dots) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 24px 24px;
+  background-position: 0 0, 0 0, 12px 12px;
+  background-attachment: fixed;
   color: var(--text);
   font-family: var(--font-sans);
   min-height: 100vh;
@@ -111,17 +113,19 @@ a:hover {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border-hover);
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-dim);
+  background: rgba(139, 92, 246, 0.4);
 }
 
-/* Glassmorphism Classes -> Converted to Solid Surface */
+/* Glassmorphism Classes */
 .glass-card {
   background: var(--panel-bg);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
   border: 1px solid var(--border);
   border-radius: 16px;
   box-shadow: var(--shadow-sm);
@@ -130,7 +134,7 @@ a:hover {
 
 .glass-card:hover {
   border-color: var(--border-hover);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-md), var(--shadow-glow);
 }
 
 /* Interactive elements */
@@ -151,15 +155,15 @@ a:hover {
 }
 
 .btn-primary {
-  background: var(--primary);
+  background: linear-gradient(135deg, var(--primary), #A78BFA);
   color: #ffffff;
-  box-shadow: 0 4px 14px 0 rgba(37, 99, 235, 0.2);
+  box-shadow: 0 4px 14px 0 rgba(139, 92, 246, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .btn-primary:hover {
-  background: var(--primary-hover);
+  background: linear-gradient(135deg, var(--primary-hover), #C4B5FD);
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px 0 rgba(37, 99, 235, 0.3);
+  box-shadow: 0 6px 20px 0 rgba(139, 92, 246, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
 .btn-primary:active {
@@ -167,13 +171,15 @@ a:hover {
 }
 
 .btn-secondary {
-  background: #FFFFFF;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border);
   color: var(--text);
 }
 
 .btn-secondary:hover {
-  background: #F1F5F9; /* slate-100 */
+  background: rgba(255, 255, 255, 0.1); 
   border-color: var(--border-hover);
   transform: translateY(-1px);
 }
@@ -215,7 +221,9 @@ a:hover {
 }
 
 .input-field {
-  background: #FFFFFF;
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 12px 16px;
@@ -224,12 +232,12 @@ a:hover {
   font-size: 0.95rem;
   outline: none;
   transition: var(--transition);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .input-field:focus {
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.25), inset 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 /* Fullscreen Loader */
@@ -354,7 +362,7 @@ a:hover {
 .border-top { border-top: 1px solid var(--border); }
 .border-left { border-left: 1px solid var(--border); }
 .border-right { border-right: 1px solid var(--border); }
-.bg-black-20 { background-color: rgba(0, 0, 0, 0.05); }
+.bg-black-20 { background-color: rgba(255, 255, 255, 0.05); }
 .bg-panel-bg-solid { background-color: var(--panel-bg-solid); }
 .border-warning { border-color: var(--warning) !important; }
 .bg-warning-glow { background-color: rgba(245, 158, 11, 0.1) !important; }
@@ -416,8 +424,8 @@ a:hover {
 }
 
 .user-profile-badge {
-  background: rgba(0, 0, 0, 0.03);
-  border-color: rgba(0, 0, 0, 0.05);
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 .guest-countdown-banner {
@@ -846,7 +854,7 @@ a:hover {
 .bg-primary { background-color: var(--primary); color: white; }
 .bg-ai-tutor { background-color: rgba(139, 92, 246, 0.1); }
 .border-ai { border: 1px solid rgba(139, 92, 246, 0.3); }
-.bg-member { background-color: #F1F5F9; border: 1px solid var(--border); }
+.bg-member { background-color: rgba(255, 255, 255, 0.05); border: 1px solid var(--border); }
 
 .chat-timestamp {
   font-size: 0.6rem;

@@ -64,6 +64,13 @@ router.post("/login", loginRules, validate, login);
 
 // Guest demo login (1-click access for recruiters/demo)
 router.post("/guest", guestLogin);
+
+// Get CSRF Token (for cross-origin frontend setups)
+// GET /api/v1/auth/csrf-token
+router.get("/csrf-token", (req, res) => {
+  // The token is generated and attached to req by csrfMiddleware
+  res.json({ csrfToken: req.csrfTokenStr });
+});
 // ============================================
 // PRIVATE ROUTES (JWT required)
 // ============================================

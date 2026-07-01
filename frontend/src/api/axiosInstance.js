@@ -4,7 +4,7 @@ const apiBase = import.meta.env.VITE_API_URL || window.location.origin;
 
 const axiosInstance = axios.create({
   baseURL: import.meta.env.DEV
-    ? "http://localhost:5000/api/v1"
+    ? "/api/v1" // Use Vite proxy in development for strict same-origin (avoids CORS/CSRF cookie drops)
     : `${apiBase}/api/v1`,
   withCredentials: true,
   headers: {
@@ -74,5 +74,10 @@ axiosInstance.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+export const clearCsrfToken = () => {
+  csrfTokenPromise = null;
+  delete axiosInstance.defaults.headers.common["X-XSRF-TOKEN"];
+};
 
 export default axiosInstance;

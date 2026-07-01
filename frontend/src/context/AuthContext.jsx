@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import axiosInstance from "../api/axiosInstance";
+import axiosInstance, { clearCsrfToken } from "../api/axiosInstance";
 import { getApiErrorMessage } from "../utils/apiErrors";
 
 const AuthContext = createContext(null);
@@ -56,6 +56,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await axiosInstance.post("/auth/login", { email, password });
       if (response.data?.success) {
+        clearCsrfToken(); // Clear token cache so next request fetches the new one
         setUser(response.data.data);
         return response.data.data;
       }
@@ -75,6 +76,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await axiosInstance.post("/auth/register", { name, email, password });
       if (response.data?.success) {
+        clearCsrfToken();
         setUser(response.data.data);
         return response.data.data;
       }
@@ -94,6 +96,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await axiosInstance.post("/auth/guest");
       if (response.data?.success) {
+        clearCsrfToken();
         setUser(response.data.data);
         return response.data.data;
       }
@@ -114,6 +117,7 @@ export const AuthProvider = ({ children }) => {
     } catch {
       // Clear client state even if request fails
     } finally {
+      clearCsrfToken();
       setUser(null);
       setLoading(false);
     }
